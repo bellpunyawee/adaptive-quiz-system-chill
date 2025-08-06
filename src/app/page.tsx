@@ -1,25 +1,40 @@
+// src/app/page.tsx
+import { handleSignIn } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import Link from "next/link";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 
-export default function HomePage() {
+export default async function LoginPage() {
+  const session = await auth();
+
+  if (session) {
+    redirect("/dashboard");
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <Card className="w-[450px]">
+      <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Welcome to the Adaptive Quiz System</CardTitle>
+          <CardTitle>Welcome</CardTitle>
           <CardDescription>
-            Log in to track your progress and start a new quiz.
+            Please sign in to continue.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex justify-between">
-             {/* This will eventually be replaced by dynamic logic after login */}
-            <Button asChild>
-              <Link href="/dashboard">Go to Dashboard</Link>
-            </Button>
-            <Button variant="outline">Login</Button>
-          </div>
+          <form action={handleSignIn} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" name="email" type="email" placeholder="loki@asgard.com" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" name="password" type="password" required />
+            </div>
+            <Button className="w-full" type="submit">Sign In</Button>
+          </form>
         </CardContent>
       </Card>
     </main>

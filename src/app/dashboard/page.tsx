@@ -1,6 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import Link from "next/link";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import { handleSignOut } from "../actions";
 
 // This is a placeholder. You'll fetch real data later.
 const performanceData = {
@@ -12,17 +15,29 @@ const performanceData = {
   ]
 };
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const session = await auth();
+  if (!session || !session.user) {
+    redirect("/");
+  }
+
+
+
   return (
     <div className="container mx-auto p-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Welcome back, Loki</h1>
+          <h1 className="text-3xl font-bold">Welcome back, {session.user.name || 'User'}</h1>
           <p className="text-muted-foreground">Here is an overview of your progress and performance.</p>
         </div>
-        <Button asChild>
-            <Link href="/quiz/start">Start New Quiz</Link>
-        </Button>
+        <div className="flex items-center gap-4">
+          <Button asChild>
+              <Link href="/quiz/start">Start New Quiz</Link>
+          </Button>
+          <form action={handleSignOut}>
+            <Button variant="outline" type="submit">Sign Out</Button>
+          </form>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
