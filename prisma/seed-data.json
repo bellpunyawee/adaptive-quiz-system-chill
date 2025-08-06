@@ -1,0 +1,38 @@
+[
+  {
+    "text": "As a project manager overseeing a large construction project, you notice that the project is lagging due to delays in material deliveries from multiple suppliers. You initiate a procurement performance review to determine which suppliers are responsible for the delays and how to address them. What would be the most appropriate action based on the procurement performance review?",
+    "moduleId": "PM5101-23",
+    "difficulty": 3,
+    "explanation": "The correct answer involves working collaboratively with underperforming suppliers to develop recovery plans. This proactive approach focuses on problem-solving and partnership rather than immediate punitive action, which could further disrupt the supply chain.",
+    "options": [
+      { "text": "Initiate claims against the suppliers for breach of contract, regardless of the cause of the delay.", "isCorrect": false },
+      { "text": "Terminate contracts with all delayed suppliers and find new ones immediately.", "isCorrect": false },
+      { "text": "Work with the underperforming suppliers to create a joint recovery plan.", "isCorrect": true },
+      { "text": "Ignore the delays and hope the schedule corrects itself over time.", "isCorrect": false }
+    ]
+  },
+  {
+    "text": "You are managing a large-scale construction project. The stakeholders have raised concerns that they are not receiving critical updates on project timelines, leading to delays in decision-making. You review the communications management plan and notice that the chosen communication channels and the frequency of updates may not suit the stakeholders' needs. How should you proceed to address this issue?",
+    "moduleId": "PM5101-26",
+    "difficulty": 2,
+    "explanation": "The correct answer is conducting a stakeholder engagement assessment as it allows you to understand the specific communication needs of stakeholders and tailor your approach accordingly. This ensures that the right stakeholders receive the right information at the right time.",
+    "options": [
+      { "text": "Send more frequent emails to all stakeholders.", "isCorrect": false },
+      { "text": "Conduct a stakeholder engagement assessment to review and update the communication plan.", "isCorrect": true },
+      { "text": "Wait for the next scheduled project review meeting to discuss the issue.", "isCorrect": false },
+      { "text": "Assume the stakeholders are too busy and reduce the amount of communication.", "isCorrect": false }
+    ]
+  },
+  {
+    "text": "During the execution phase of a software development project, a key developer unexpectedly resigns. This poses a significant risk to the project's timeline and quality. What is the FIRST step you should take as the project manager?",
+    "moduleId": "PM5101-16",
+    "difficulty": 4,
+    "explanation": "The first step is always to assess the impact. Before you can make any decisions about replacing the developer or changing the schedule, you must understand exactly which tasks are affected and how critical the impact is on the project's objectives.",
+    "options": [
+      { "text": "Immediately start the recruitment process for a replacement.", "isCorrect": false },
+      { "text": "Re-assign the developer's tasks to the remaining team members.", "isCorrect": false },
+      { "text": "Update the project sponsor that the project will be delayed.", "isCorrect": false },
+      { "text": "Assess the impact of the developer's departure on the project plan.", "isCorrect": true }
+    ]
+  }
+]

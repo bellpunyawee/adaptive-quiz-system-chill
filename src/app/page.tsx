@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import Link from 'next/link'; // Make sure Link is imported
 
 export default async function LoginPage() {
   const session = await auth();
@@ -35,6 +36,13 @@ export default async function LoginPage() {
             </div>
             <Button className="w-full" type="submit">Sign In</Button>
           </form>
+          {/* Add this block */}
+          <div className="mt-4 text-center text-sm">
+            Don't have an account?{' '}
+            <Link href="/register" className="underline">
+              Sign Up
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </main>
