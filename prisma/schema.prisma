@@ -1,0 +1,62 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // You can change this to "mysql" or "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  name      String?
+  email     String?   @unique
+  image     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  quizzes   Quiz[]
+  answers   UserAnswer[]
+}
+
+model Question {
+  id           String         @id @default(cuid())
+  text         String
+  moduleId     String         // e.g., "PM5101-16", "PM5101-20"
+  difficulty   Int            // e.g., 1 (easy) to 5 (hard)
+  explanation  String?
+  answerOptions AnswerOption[]
+  userAnswers  UserAnswer[]
+}
+
+model AnswerOption {
+  id         String   @id @default(cuid())
+  text       String
+  isCorrect  Boolean  @default(false)
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+// Represents a single attempt by a user
+model Quiz {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      String   @default("in-progress") // "in-progress", "completed"
+  createdAt   DateTime @default(now())
+  userAnswers UserAnswer[]
+}
+
+// Tracks each answer a user submits during a quiz
+model UserAnswer {
+  id              String   @id @default(cuid())
+  quizId          String
+  quiz            Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  questionId      String
+  question        Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOptionId String
+  isCorrect       Boolean
+  createdAt       DateTime @default(now())
+}
