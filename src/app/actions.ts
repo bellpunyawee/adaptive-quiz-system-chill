@@ -1,8 +1,9 @@
 'use server';
 
-import { signIn, signOut } from '@/auth';
+import { signIn, signOut, auth } from '@/auth';
 import prisma from '../lib/db'; // Import prisma
 import { hash } from 'bcrypt';  // Import bcrypt
+import { redirect } from 'next/navigation'; // redirect is needed
 
 export async function handleSignIn(formData: FormData) {
   await signIn('credentials', formData);
@@ -45,4 +46,24 @@ export async function handleSignUp(formData: FormData) {
 
   // Automatically sign in the user after they register
   await signIn('credentials', formData);
+}
+
+export async function startNewQuiz() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    // This should not happen if the button is only on the dashboard,
+    // but it's good practice to check.
+    redirect('/');
+  }
+
+  // Create a new quiz attempt for the current user
+  const newQuiz = await prisma.quiz.create({
+    data: {
+      userId: session.user.id,
+      status: 'in-progress',
+    },
+  });
+
+  // Redirect the user to the new quiz page
+  redirect(`/quiz/${newQuiz.id}`);
 }

@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { handleSignOut } from "../actions";
+import { handleSignOut, startNewQuiz } from "../actions";
 
 // This is a placeholder. You'll fetch real data later.
 const performanceData = {
