@@ -1,37 +1,51 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite" // Change this from "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-
+// User model is mostly the same
 model User {
-  id            String       @id @default(cuid())
-  name          String?
-  password      String?
-  email         String?      @unique
-  emailVerified DateTime?
-  image         String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  quizzes       Quiz[]
-  answers       UserAnswer[] // This is now valid because of the change in UserAnswer
+  id              String             @id @default(cuid())
+  name            String?
+  password        String?
+  email           String?            @unique
+  emailVerified   DateTime?
+  image           String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  quizzes         Quiz[]
+  userAnswers     UserAnswer[]
+  // Tracks the user's ability per topic/cell
+  userCellMastery UserCellMastery[]
+}
+
+// NEW MODEL: Represents a topic or skill area (a "Cell")
+model Cell {
+  id             String          @id @default(cuid())
+  name           String          // e.g., "Procurement Management"
+  // IRT parameters for the cell itself
+  difficulty_b   Float           @default(0)
+  discrimination_a Float         @default(1)
+  questions      Question[]
+  userMastery    UserCellMastery[]
 }
 
 model Question {
-  id           String         @id @default(cuid())
-  text         String
-  moduleId     String         // e.g., "PM5101-16", "PM5101-20"
-  difficulty   Int            // e.g., 1 (easy) to 5 (hard)
-  explanation  String?
-  answerOptions AnswerOption[]
-  userAnswers  UserAnswer[]
+  id               String         @id @default(cuid())
+  text             String
+  explanation      String?
+  // Link to the Cell (topic) this question belongs to
+  cellId           String
+  cell             Cell           @relation(fields: [cellId], references: [id])
+  // IRT parameters for the question
+  difficulty_b     Float          @default(0)
+  discrimination_a Float          @default(1)
+  answerOptions    AnswerOption[]
+  userAnswers      UserAnswer[]
 }
 
 model AnswerOption {
@@ -43,17 +57,34 @@ model AnswerOption {
 }
 
 model Quiz {
-  id        String   @id @default(cuid())
-  userId    String
-  // Add the @relation attribute here to complete the link
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status    String   @default("in-progress") // "in-progress", "completed"
-  createdAt DateTime @default(now())
-  // The relation field 'userAnswers' on Quiz is also missing a back-relation
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      String       @default("in-progress")
+  createdAt   DateTime     @default(now())
   userAnswers UserAnswer[]
+  startedAt   DateTime     @default(now())
+  completedAt DateTime?
 }
 
-// Tracks each answer a user submits during a quiz
+// NEW MODEL: Join table for user ability and cell progress
+model UserCellMastery {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cellId         String
+  cell           Cell     @relation(fields: [cellId], references: [id], onDelete: Cascade)
+  // The user's estimated ability (theta) for this specific cell
+  ability_theta  Float    @default(0)
+  // How many times this cell has been presented to the user
+  selection_count Int      @default(0)
+  // 0 = Not Mastered, 1 = Mastered
+  mastery_status Int      @default(0)
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, cellId]) // A user has only one mastery record per cell
+}
+
 model UserAnswer {
   id               String   @id @default(cuid())
   quizId           String
@@ -63,8 +94,6 @@ model UserAnswer {
   selectedOptionId String
   isCorrect        Boolean
   createdAt        DateTime @default(now())
-
-  // Add these two lines to complete the relation with User
   userId           String
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
