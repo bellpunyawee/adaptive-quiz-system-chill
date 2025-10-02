@@ -91,6 +91,7 @@ export async function startNewQuiz() {
       data: {
         userId: userId,
         status: 'in-progress',
+        startedAt: new Date(), 
       },
     });
     console.log(`[ACTION] DB write successful. New quiz ID: ${newQuiz.id}`);

@@ -41,8 +41,24 @@ model Question {
   cell             Cell           @relation(fields: [cellId], references: [id])
   difficulty_b     Float          @default(0)
   discrimination_a Float          @default(1)
+  
+  exposureCount    Int            @default(0)      
+  maxExposure      Int            @default(10)     
+  lastUsed         DateTime?                       
+  isActive         Boolean        @default(true)   
+  retiredAt        DateTime?                       
+  retirementReason String?                         
+  
+  responseCount    Int            @default(0)      
+  correctRate      Float?                          
+  lastCalibrated   DateTime?                       
+  
   answerOptions    AnswerOption[]
   userAnswers      UserAnswer[]
+  
+  @@index([cellId, isActive])
+  @@index([exposureCount])
+  @@index([lastUsed])
 }
 
 model AnswerOption {
@@ -72,11 +88,17 @@ model UserCellMastery {
   cellId         String
   cell           Cell     @relation(fields: [cellId], references: [id], onDelete: Cascade)
   ability_theta  Float    @default(0)
-  selection_count Int      @default(0)
+  selection_count Int     @default(0)
   mastery_status Int      @default(0)
+
+  sem            Float?              
+  confidence     Float?              
+  lastEstimated  DateTime?           
+  responseCount  Int     @default(0) 
+  
   updatedAt      DateTime @updatedAt
 
-  @@unique([userId, cellId]) // A user has only one mastery record per cell
+  @@unique([userId, cellId])
 }
 
 model UserAnswer {
@@ -90,6 +112,9 @@ model UserAnswer {
   createdAt        DateTime @default(now())
   userId           String
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  responseTime     Int?             
+  abilityAtTime    Float?           
 }
 
 model EngineLog {
