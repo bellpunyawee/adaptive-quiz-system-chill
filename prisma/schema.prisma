@@ -7,7 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User model is mostly the same
 model User {
   id              String             @id @default(cuid())
   name            String?
@@ -19,29 +18,27 @@ model User {
   updatedAt       DateTime           @updatedAt
   quizzes         Quiz[]
   userAnswers     UserAnswer[]
-  // Tracks the user's ability per topic/cell
   userCellMastery UserCellMastery[]
+  engineLogs      EngineLog[]
+  abilityHistory  AbilityHistory[]
 }
 
-// NEW MODEL: Represents a topic or skill area (a "Cell")
 model Cell {
   id             String          @id @default(cuid())
-  name           String          // e.g., "Procurement Management"
-  // IRT parameters for the cell itself
+  name           String          
   difficulty_b   Float           @default(0)
   discrimination_a Float         @default(1)
   questions      Question[]
   userMastery    UserCellMastery[]
+  abilityHistory  AbilityHistory[]
 }
 
 model Question {
   id               String         @id @default(cuid())
   text             String
   explanation      String?
-  // Link to the Cell (topic) this question belongs to
   cellId           String
   cell             Cell           @relation(fields: [cellId], references: [id])
-  // IRT parameters for the question
   difficulty_b     Float          @default(0)
   discrimination_a Float          @default(1)
   answerOptions    AnswerOption[]
@@ -65,20 +62,17 @@ model Quiz {
   userAnswers UserAnswer[]
   startedAt   DateTime     @default(now())
   completedAt DateTime?
+  engineLogs      EngineLog[]
 }
 
-// NEW MODEL: Join table for user ability and cell progress
 model UserCellMastery {
   id             String   @id @default(cuid())
   userId         String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   cellId         String
   cell           Cell     @relation(fields: [cellId], references: [id], onDelete: Cascade)
-  // The user's estimated ability (theta) for this specific cell
   ability_theta  Float    @default(0)
-  // How many times this cell has been presented to the user
   selection_count Int      @default(0)
-  // 0 = Not Mastered, 1 = Mastered
   mastery_status Int      @default(0)
   updatedAt      DateTime @updatedAt
 
@@ -96,4 +90,50 @@ model UserAnswer {
   createdAt        DateTime @default(now())
   userId           String
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EngineLog {
+  id        String   @id @default(cuid())
+  userId    String
+  quizId    String
+  eventType String   // 'question_selected', 'answer_processed', 'mastery_achieved', etc.
+  data      String   // JSON string with event-specific data
+  duration  Int?     // milliseconds (optional)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([userId, quizId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+model IRTParameterHistory {
+  id               String   @id @default(cuid())
+  entityType       String   
+  entityId         String   
+  difficulty_b     Float
+  discrimination_a Float
+  reason           String?  
+  updatedAt        DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([updatedAt])
+}
+
+model AbilityHistory {
+  id            String   @id @default(cuid())
+  userId        String
+  cellId        String
+  ability_theta Float
+  confidence    Float?   
+  quizId        String?
+  updatedAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cell Cell @relation(fields: [cellId], references: [id], onDelete: Cascade)
+
+  @@index([userId, cellId])
+  @@index([updatedAt])
 }
