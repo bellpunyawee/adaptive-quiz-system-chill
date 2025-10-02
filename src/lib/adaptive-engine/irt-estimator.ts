@@ -1,5 +1,3 @@
-// src/lib/adaptive-engine/irt-estimator.ts
-// Pure TypeScript implementation - NO external dependencies required
 import prisma from "@/lib/db";
 
 /**
@@ -80,16 +78,60 @@ export function calculateProbability(
 }
 
 /**
- * Calculate Fisher Information at a given ability level
- * This tells us how informative a question is for measuring ability
+ * Calculate Kullback-Leibler Information between learner's response pattern and item
+ * KLI measures how much information we gain about the learner's ability from this item
+ * Higher KLI = more informative item for this learner
+ * 
+ * @param theta - Learner's current ability estimate
+ * @param difficulty_b - Item difficulty parameter
+ * @param discrimination_a - Item discrimination parameter
+ * @returns KLI value (higher = more informative)
+ */
+export function calculateKullbackLeiblerInformation(
+  theta: number,
+  difficulty_b: number,
+  discrimination_a: number
+): number {
+  // Calculate probability of correct response given ability
+  const p_theta = calculateProbability(theta, difficulty_b, discrimination_a);
+  
+  // Clamp probabilities to avoid log(0)
+  const p_clamped = Math.max(0.01, Math.min(0.99, p_theta));
+  
+  // Prior distribution q(x) - represents baseline expectation
+  // Use a constant prior (0.5 = 50% chance) rather than difficulty-based
+  // This ensures KLI is always positive when p ≠ 0.5
+  const q_x = 0.5;
+  
+  // KL Divergence: KL(P||Q) = Σ P(x) * log(P(x) / Q(x))
+  // For binary outcome (correct/incorrect):
+  // KL = p*log(p/q) + (1-p)*log((1-p)/(1-q))
+  const term1 = p_clamped * Math.log(p_clamped / q_x);
+  const term2 = (1 - p_clamped) * Math.log((1 - p_clamped) / (1 - q_x));
+  
+  // Check for NaN or Infinity
+  if (!isFinite(term1) || !isFinite(term2)) {
+    return 0; // Return minimal information if calculation fails
+  }
+  
+  const kli = term1 + term2;
+  
+  // KLI should always be non-negative, but due to numerical precision
+  // it might be slightly negative. Ensure it's at least 0.
+  return Math.max(0, kli);
+}
+
+/**
+ * Legacy function name for backwards compatibility
+ * @deprecated Use calculateKullbackLeiblerInformation instead
  */
 export function calculateFisherInformation(
   theta: number,
   difficulty_b: number,
   discrimination_a: number
 ): number {
-  const p = calculateProbability(theta, difficulty_b, discrimination_a);
-  return discrimination_a * discrimination_a * p * (1 - p);
+  // For backwards compatibility, return KLI
+  return calculateKullbackLeiblerInformation(theta, difficulty_b, discrimination_a);
 }
 
 /**

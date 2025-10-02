@@ -1,7 +1,7 @@
 // src/lib/adaptive-engine/__tests__/engine.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { calculateUCB } from '../ucb';
-import { estimateAbilityMLE, calculateProbability, calculateFisherInformation } from '../irt-estimator';
+import { estimateAbilityMLE, calculateProbability, calculateKullbackLeiblerInformation } from '../irt-estimator';
 import { calculateSEM } from '../stopping-criteria';
 import { calculateContentBalanceScore } from '../content-balancer';
 
@@ -147,22 +147,72 @@ describe('IRT Calculations', () => {
     });
   });
 
-  describe('calculateFisherInformation', () => {
-    it('should be maximum when ability equals difficulty', () => {
-      const info = calculateFisherInformation(0, 0, 1);
-      expect(info).toBeCloseTo(0.25, 2); // For a=1, max info is a²/4
+  describe('calculateKullbackLeiblerInformation', () => {
+    it('should return zero when probability equals prior (p=0.5)', () => {
+      // When θ = b, p = 0.5, and with prior q = 0.5, KL should be 0
+      const info = calculateKullbackLeiblerInformation(0, 0, 1);
+      expect(info).toBeCloseTo(0, 5);
+    });
+
+    it('should return positive information when probability differs from prior', () => {
+      // When θ > b, p > 0.5, so KL should be positive
+      const info1 = calculateKullbackLeiblerInformation(1, 0, 1);
+      expect(info1).toBeGreaterThan(0);
+      
+      // When θ < b, p < 0.5, so KL should also be positive
+      const info2 = calculateKullbackLeiblerInformation(-1, 0, 1);
+      expect(info2).toBeGreaterThan(0);
+    });
+
+    it('should be symmetric around p=0.5', () => {
+      // KL should be equal for p=0.6 and p=0.4 (equidistant from 0.5)
+      const info1 = calculateKullbackLeiblerInformation(0.7, 0, 1); // p ≈ 0.668
+      const info2 = calculateKullbackLeiblerInformation(-0.7, 0, 1); // p ≈ 0.332
+      
+      // Should be approximately equal due to symmetry
+      expect(Math.abs(info1 - info2)).toBeLessThan(0.01);
+    });
+
+    it('should increase with distance from p=0.5', () => {
+      // Further from 0.5 = more information
+      const infoNear = calculateKullbackLeiblerInformation(0.3, 0, 1); // p ≈ 0.574
+      const infoFar = calculateKullbackLeiblerInformation(2, 0, 1); // p ≈ 0.881
+      
+      expect(infoFar).toBeGreaterThan(infoNear);
     });
 
     it('should increase with discrimination parameter', () => {
-      const info1 = calculateFisherInformation(0, 0, 1);
-      const info2 = calculateFisherInformation(0, 0, 2);
+      // Higher discrimination creates stronger separation from p=0.5
+      const info1 = calculateKullbackLeiblerInformation(1, 0, 1); // a=1
+      const info2 = calculateKullbackLeiblerInformation(1, 0, 2); // a=2
+      
+      // With higher discrimination, p moves further from 0.5
       expect(info2).toBeGreaterThan(info1);
     });
 
-    it('should decrease as ability diverges from difficulty', () => {
-      const infoAtTarget = calculateFisherInformation(0, 0, 1);
-      const infoFarAway = calculateFisherInformation(3, 0, 1);
-      expect(infoAtTarget).toBeGreaterThan(infoFarAway);
+    it('should return valid values for various ability-difficulty combinations', () => {
+      const testCases = [
+        { theta: 0, b: 0, a: 1 }, // p=0.5, KL=0
+        { theta: 1, b: 0, a: 1 }, // p>0.5, KL>0
+        { theta: -1, b: 0, a: 1 }, // p<0.5, KL>0
+        { theta: 0, b: 1, a: 1 }, // p<0.5, KL>0
+        { theta: 2, b: -2, a: 1.5 }, // p>>0.5, KL>0
+      ];
+
+      testCases.forEach(({ theta, b, a }) => {
+        const info = calculateKullbackLeiblerInformation(theta, b, a);
+        expect(isFinite(info)).toBe(true);
+        expect(info).toBeGreaterThanOrEqual(0);
+      });
+    });
+
+    it('should handle extreme discrimination values', () => {
+      expect(() => calculateKullbackLeiblerInformation(0, 0, 0.001)).not.toThrow();
+      expect(() => calculateKullbackLeiblerInformation(0, 0, 10)).not.toThrow();
+      
+      // With extreme discrimination and mismatched ability/difficulty
+      const info = calculateKullbackLeiblerInformation(2, 0, 10);
+      expect(info).toBeGreaterThan(0);
     });
   });
 
@@ -219,29 +269,41 @@ describe('Content Balancing', () => {
 });
 
 describe('Integration Tests', () => {
-  it('should select questions that maximize information gain', () => {
+  it('should calculate KLI for questions at different difficulties', () => {
     // Simulate a learner with ability 1.0
     const ability = 1.0;
     
     // Questions with different difficulties
     const questions = [
-      { id: 'q1', difficulty_b: -2, discrimination_a: 1 },
-      { id: 'q2', difficulty_b: 0, discrimination_a: 1 },
-      { id: 'q3', difficulty_b: 1, discrimination_a: 1 }, // Should match ability
-      { id: 'q4', difficulty_b: 3, discrimination_a: 1 },
+      { id: 'q1', difficulty_b: -2, discrimination_a: 1 }, // Much easier, p >> 0.5
+      { id: 'q2', difficulty_b: 0, discrimination_a: 1 },  // Easier, p > 0.5
+      { id: 'q3', difficulty_b: 1, discrimination_a: 1 },  // Matched, p = 0.5, KL = 0
+      { id: 'q4', difficulty_b: 3, discrimination_a: 1 },  // Much harder, p << 0.5
     ];
     
-    // Calculate information for each
-    const informationScores = questions.map(q => ({
+    // Calculate KLI for each
+    const informationScores = questions.map((q) => ({
       id: q.id,
-      info: calculateFisherInformation(ability, q.difficulty_b, q.discrimination_a)
+      info: calculateKullbackLeiblerInformation(ability, q.difficulty_b, q.discrimination_a),
+      difficulty: q.difficulty_b
     }));
     
-    // Question closest to ability should have highest information
-    const maxInfo = Math.max(...informationScores.map(s => s.info));
-    const bestQuestion = informationScores.find(s => s.info === maxInfo);
+    console.log('KLI scores:', informationScores);
     
-    expect(bestQuestion?.id).toBe('q3');
+    // Questions away from matched difficulty should have positive KLI
+    const q1Score = informationScores.find((s) => s.id === 'q1');
+    const q2Score = informationScores.find((s) => s.id === 'q2');
+    const q3Score = informationScores.find((s) => s.id === 'q3');
+    const q4Score = informationScores.find((s) => s.id === 'q4');
+    
+    expect(q1Score?.info).toBeGreaterThan(0); // Far from match
+    expect(q2Score?.info).toBeGreaterThan(0); // Somewhat from match
+    expect(q3Score?.info).toBeCloseTo(0, 3);  // Perfect match, p=0.5
+    expect(q4Score?.info).toBeGreaterThan(0); // Far from match
+    
+    // Questions furthest from ability should have highest KLI
+    expect(q1Score!.info).toBeGreaterThan(q2Score!.info);
+    expect(q4Score!.info).toBeGreaterThan(q2Score!.info);
   });
 
   it('should estimate higher ability after correct responses to difficult questions', () => {

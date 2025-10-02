@@ -1,6 +1,6 @@
 // src/lib/adaptive-engine/stopping-criteria.ts
 import prisma from "@/lib/db";
-import { calculateFisherInformation } from "./irt-estimator";
+import { calculateKullbackLeiblerInformation } from "./irt-estimator";
 
 export interface StoppingConfig {
   minQuestions: number;
@@ -19,7 +19,8 @@ const DEFAULT_CONFIG: StoppingConfig = {
 };
 
 /**
- * Calculate Standard Error of Measurement based on Fisher Information
+ * Calculate Standard Error of Measurement based on Kullback-Leibler Information
+ * SEM = 1 / sqrt(total_information)
  */
 export function calculateSEM(totalInformation: number): number {
   if (totalInformation <= 0) return Infinity;
@@ -27,7 +28,7 @@ export function calculateSEM(totalInformation: number): number {
 }
 
 /**
- * Calculate total information gathered so far
+ * Calculate total Kullback-Leibler Information gathered so far
  */
 export async function calculateTotalInformation(
   userId: string,
@@ -49,17 +50,17 @@ export async function calculateTotalInformation(
   });
 
   const thetaMap = new Map(
-    masteries.map(m => [m.cellId, m.ability_theta])
+    masteries.map((m) => [m.cellId, m.ability_theta])
   );
 
-  // Calculate information per cell
+  // Calculate Kullback-Leibler Information per cell
   const informationPerCell = new Map<string, number>();
 
   answers.forEach((answer) => {
     const cellId = answer.question.cellId;
     const theta = thetaMap.get(cellId) || 0;
     
-    const information = calculateFisherInformation(
+    const information = calculateKullbackLeiblerInformation(
       theta,
       answer.question.difficulty_b,
       answer.question.discrimination_a
@@ -190,7 +191,7 @@ export async function shouldStopQuiz(
     let totalRecentInformation = 0;
     recentAnswers.forEach((ans) => {
       const theta = thetaMap.get(ans.question.cellId) || 0;
-      totalRecentInformation += calculateFisherInformation(
+      totalRecentInformation += calculateKullbackLeiblerInformation(
         theta,
         ans.question.difficulty_b,
         ans.question.discrimination_a
