@@ -1,7 +1,7 @@
 // src/app/api/quiz/[quizId]/route.ts
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { selectNextQuestionForUser, processUserAnswer } from '@/lib/adaptive-engine/engine';
+import { selectNextQuestionForUser, processUserAnswer } from '@/lib/adaptive-engine/engine-enhanced';
 import prisma from '@/lib/db';
 
 export async function GET(req: Request) {
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
       session.user.id, 
       quizId, 
       questionId, 
-      isCorrect
+      selectedOptionId
     );
 
     // Return feedback with explanation
