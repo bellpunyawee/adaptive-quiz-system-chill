@@ -1,13 +1,10 @@
-// src/app/api/quiz/[quizId]/route.ts (Enhanced Version)
+// src/app/api/quiz/[quizId]/route.ts
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { selectNextQuestionForUser, processUserAnswer, getQuizStatus } from '@/lib/adaptive-engine/engine';
+import { selectNextQuestionForUser, processUserAnswer } from '@/lib/adaptive-engine/engine';
 import prisma from '@/lib/db';
-import { PerformanceTimer } from '@/lib/adaptive-engine/monitoring';
 
 export async function GET(req: Request) {
-  const timer = new PerformanceTimer();
-  
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -35,25 +32,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get comprehensive quiz status
-    const quizStatus = await getQuizStatus(session.user.id, quizId);
-
-    if (!quizStatus?.shouldContinue) {
-      await prisma.quiz.update({
-        where: { id: quizId },
-        data: {
-          status: 'completed',
-          completedAt: new Date(),
-        },
-      });
-      
-      return NextResponse.json({ 
-        status: 'completed',
-        reason: quizStatus?.stoppingReason || 'Quiz complete',
-        details: quizStatus?.details
-      });
-    }
-
     // Select next question
     const nextQuestion = await selectNextQuestionForUser(session.user.id, quizId);
 
@@ -68,18 +46,25 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: 'completed' });
     }
 
+    // Get total questions count and answered count
+    const [totalQuestions, answeredCount] = await Promise.all([
+      prisma.question.count(), // Total available questions
+      prisma.userAnswer.count({
+        where: { quizId: quizId, userId: session.user.id }
+      })
+    ]);
+
     // Remove sensitive IRT parameters from response
     const { discrimination_a, difficulty_b, answerOptions, ...publicQuestionData } = nextQuestion;
     const publicOptions = answerOptions.map(({ id, text }) => ({ id, text }));
-
-    console.log(`[API] Question selected in ${timer.elapsed()}ms`);
 
     return NextResponse.json({
       status: 'in-progress',
       question: { 
         ...publicQuestionData, 
         options: publicOptions,
-        progress: quizStatus.progress
+        totalQuestions,
+        answeredCount
       },
     });
   } catch (error) {
@@ -92,8 +77,6 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const timer = new PerformanceTimer();
-  
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -118,7 +101,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { questionId, selectedOptionId, responseTime } = body;
+    const { questionId, selectedOptionId } = body;
 
     if (!questionId || !selectedOptionId) {
       return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
@@ -157,19 +140,14 @@ export async function POST(req: Request) {
       session.user.id, 
       quizId, 
       questionId, 
-      isCorrect,
-      responseTime
+      isCorrect
     );
-
-    console.log(`[API] Answer processed in ${timer.elapsed()}ms`);
 
     // Return feedback with explanation
     return NextResponse.json({
       isCorrect: isCorrect,
       correctOptionId: correctOption.id,
       explanation: question.explanation || 'No explanation available.',
-      cellName: question.cell.name,
-      responseTime: timer.elapsed()
     });
 
   } catch (error) {
@@ -178,30 +156,5 @@ export async function POST(req: Request) {
       error: 'Failed to submit answer.',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
-  }
-}
-
-// New endpoint for quiz analytics
-export async function PATCH(req: Request) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const url = new URL(req.url);
-    const pathSegments = url.pathname.split('/');
-    const quizId = pathSegments[pathSegments.length - 1];
-
-    const quizStatus = await getQuizStatus(session.user.id, quizId);
-
-    return NextResponse.json({
-      status: 'success',
-      data: quizStatus
-    });
-
-  } catch (error) {
-    console.error("[API PATCH Error]:", error);
-    return NextResponse.json({ error: 'Failed to get quiz status.' }, { status: 500 });
   }
 }

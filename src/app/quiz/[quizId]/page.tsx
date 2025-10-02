@@ -1,16 +1,26 @@
-'use client'; // This directive is crucial!
+'use client';
 
 import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { useStopwatch } from '@/hooks/use-stopwatch'; // Import the new hook
-import { Progress } from '@/components/ui/progress';   // Import the Progress component
+import { CheckCircle, XCircle, Loader2, X, Clock } from 'lucide-react';
+import { useStopwatch } from '@/hooks/use-stopwatch';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
-// Define the TypeScript types for our component's state
 interface Question {
   id: string;
   text: string;
@@ -27,38 +37,55 @@ interface Feedback {
 
 type QuizStatus = 'loading' | 'in-progress' | 'completed' | 'error';
 
+// Answer history item
+interface AnswerHistory {
+  questionNumber: number;
+  isCorrect: boolean;
+}
+
 export default function QuizPage({ params: paramsPromise }: { params: Promise<{ quizId: string }> }) {
-  // Use the React 'use' hook to unwrap the Promise
   const params = use(paramsPromise);
+  const router = useRouter();
   
   const [question, setQuestion] = useState<Question | null>(null);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [quizStatus, setQuizStatus] = useState<QuizStatus>('loading');
+  const [answerHistory, setAnswerHistory] = useState<AnswerHistory[]>([]);
   const { time, stopTimer } = useStopwatch();
-  const [progress, setProgress] = useState(0);
-
-  // --- Data Fetching and State Management ---
 
   const fetchNextQuestion = async () => {
     setFeedback(null);
     setSelectedOption(null);
     setQuizStatus('loading');
     
-     try {
+    try {
       const res = await fetch(`/api/quiz/${params.quizId}`);
       if (!res.ok) throw new Error('Failed to fetch');
       
       const data = await res.json();
       
+      console.log('[DEBUG] API Response:', data); // Debug log
+      
       if (data.status === 'completed') {
         setQuizStatus('completed');
-        stopTimer(); // Stop the timer when the quiz is done
+        stopTimer();
       } else {
         setQuestion(data.question);
         setQuizStatus('in-progress');
-        // Update progress when a new question is fetched
-        setProgress((data.question.answeredCount / data.question.totalQuestions) * 100);
+        
+        // Initialize answer history if this is the first load
+        if (answerHistory.length === 0 && data.question.answeredCount > 0) {
+          // Load existing answers from the server
+          const answersRes = await fetch(`/api/quiz/${params.quizId}/answers`);
+          if (answersRes.ok) {
+            const answersData = await answersRes.json();
+            setAnswerHistory(answersData.map((a: any, index: number) => ({
+              questionNumber: index + 1,
+              isCorrect: a.isCorrect
+            })));
+          }
+        }
       }
     } catch (error) {
       console.error(error);
@@ -67,9 +94,8 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
   };
 
   useEffect(() => {
-    // It's safe to call this here because 'use' resolves before the effect runs
     fetchNextQuestion();
-  }, [params.quizId]); // Add params.quizId as a dependency to be explicit
+  }, [params.quizId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,13 +114,29 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
 
       const feedbackData = await res.json();
       setFeedback(feedbackData);
+      
+      // Add to answer history
+      setAnswerHistory([...answerHistory, {
+        questionNumber: question.answeredCount + 1,
+        isCorrect: feedbackData.isCorrect
+      }]);
     } catch (error) {
-        console.error(error);
-        // Optionally, show an error message to the user
+      console.error(error);
     }
   };
 
-  // --- Rendering Logic ---
+  const handleAbort = async () => {
+    try {
+      // Mark quiz as aborted/incomplete
+      await fetch(`/api/quiz/${params.quizId}/abort`, {
+        method: 'POST',
+      });
+    } catch (error) {
+      console.error('Failed to abort quiz:', error);
+    } finally {
+      router.push('/dashboard');
+    }
+  };
 
   if (quizStatus === 'loading') {
     return (
@@ -114,10 +156,11 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
           </CardHeader>
           <CardContent>
             <p className="mb-6 text-muted-foreground">You have completed the assessment.</p>
-            {/* THIS IS THE CHANGE */}
             <div className="flex justify-center gap-4">
               <Button asChild><Link href="/dashboard">Return to Dashboard</Link></Button>
-              <Button variant="outline" asChild><Link href={`/quiz/results/${params.quizId}`}>View Results</Link></Button>
+              <Button variant="outline" asChild>
+                <Link href={`/quiz/results/${params.quizId}`}>View Results</Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -126,69 +169,172 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
   }
 
   if (quizStatus === 'error') {
-     return (
-        <div className="flex items-center justify-center min-h-screen text-center">
-            <p className="text-red-500">An error occurred. Please try refreshing the page.</p>
-        </div>
-     )
+    return (
+      <div className="flex items-center justify-center min-h-screen text-center">
+        <p className="text-red-500">An error occurred. Please try refreshing the page.</p>
+      </div>
+    );
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-muted/40">
-      <div className="w-full max-w-2xl mb-4">
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="text-lg font-semibold">Adaptive Quiz</h2>
-          <div className="text-sm font-mono p-1.5 bg-muted rounded-md">{time}</div>
+    <div className="min-h-screen p-4 bg-muted/40">
+      <div className="container mx-auto max-w-4xl">
+        {/* Header with timer and abort button */}
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold">Adaptive Quiz</h1>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              <span className="font-mono">{time}</span>
+            </div>
+          </div>
+          
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm">
+                <X className="h-4 w-4 mr-2" />
+                Abort Quiz
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure you want to abort?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Your progress will not be saved. You'll need to start over if you want to complete this quiz.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Continue Quiz</AlertDialogCancel>
+                <AlertDialogAction onClick={handleAbort} className="bg-destructive hover:bg-destructive/90">
+                  Yes, Abort Quiz
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
-        <Progress value={progress} className="w-full" />
-      </div>
-      <Card className="w-full max-w-2xl">
-        <CardHeader>
-          <CardTitle>Question {question ? question.answeredCount + 1 : '...'}</CardTitle>
-          <CardDescription className="pt-2">{question?.text}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit}>
-            <RadioGroup
-              value={selectedOption ?? ""}
-              onValueChange={setSelectedOption}
-              disabled={!!feedback}
-              className="space-y-3"
-            >
-              {question?.options.map((option) => (
-                <Label
-                  key={option.id}
-                  htmlFor={option.id}
-                  className={`flex items-center space-x-3 p-4 border rounded-md cursor-pointer transition-colors
-                    ${feedback && option.id === feedback.correctOptionId ? 'border-green-500 bg-green-100/50' : ''}
-                    ${feedback && option.id !== feedback.correctOptionId && option.id === selectedOption ? 'border-red-500 bg-red-100/50' : ''}
-                  `}
-                >
-                  <RadioGroupItem value={option.id} id={option.id} />
-                  <span>{option.text}</span>
-                </Label>
-              ))}
-            </RadioGroup>
-            <div className="mt-6 flex justify-end">
-              {!feedback ? (
-                <Button type="submit" disabled={!selectedOption}>Submit Answer</Button>
-              ) : (
-                <Button onClick={fetchNextQuestion}>Next Question</Button>
-              )}
-            </div>
-          </form>
 
-          {feedback && (
-            <div className={`mt-4 p-4 rounded-md border ${feedback.isCorrect ? 'bg-green-100/50 border-green-500/50 text-green-900' : 'bg-red-100/50 border-red-500/50 text-red-900'}`}>
-              <div className="flex items-center gap-2 font-bold">
-                {feedback.isCorrect ? <CheckCircle className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
-                <span>{feedback.isCorrect ? 'Correct!' : 'Incorrect'}</span>
+        {/* Progress indicator with colored dots */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium">
+              Question {question ? question.answeredCount + 1 : '...'} of {question?.totalQuestions || '...'}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {answerHistory.length > 0 && (
+                <span>
+                  {answerHistory.filter((a) => a.isCorrect).length} / {answerHistory.length} correct
+                </span>
+              )}
+            </span>
+          </div>
+          
+          {/* Dot progress bar */}
+          <div className="flex gap-1.5 flex-wrap">
+            {Array.from({ length: question?.totalQuestions || 0 }).map((_, index) => {
+              const answer = answerHistory.find((a) => a.questionNumber === index + 1);
+              const isCurrent = index === (question?.answeredCount || 0);
+              
+              return (
+                <div
+                  key={index}
+                  className={`h-2 flex-1 min-w-[8px] rounded-full transition-all ${
+                    answer
+                      ? answer.isCorrect
+                        ? 'bg-green-500'
+                        : 'bg-red-500'
+                      : isCurrent
+                      ? 'bg-primary animate-pulse'
+                      : 'bg-muted'
+                  }`}
+                  title={
+                    answer
+                      ? `Question ${index + 1}: ${answer.isCorrect ? 'Correct' : 'Incorrect'}`
+                      : isCurrent
+                      ? 'Current question'
+                      : 'Not yet answered'
+                  }
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Question card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Question {question ? question.answeredCount + 1 : '...'}</CardTitle>
+            <CardDescription className="pt-2 text-base leading-relaxed">
+              {question?.text}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit}>
+              <RadioGroup
+                value={selectedOption ?? ""}
+                onValueChange={setSelectedOption}
+                disabled={!!feedback}
+                className="space-y-3"
+              >
+                {question?.options.map((option) => (
+                  <Label
+                    key={option.id}
+                    htmlFor={option.id}
+                    className={`flex items-center space-x-3 p-4 border rounded-md cursor-pointer transition-colors
+                      ${feedback && option.id === feedback.correctOptionId
+                        ? 'border-green-500 bg-green-50 dark:bg-green-950'
+                        : feedback && option.id === selectedOption && !feedback.isCorrect
+                        ? 'border-red-500 bg-red-50 dark:bg-red-950'
+                        : !feedback
+                        ? 'hover:bg-accent'
+                        : ''
+                      }
+                      ${feedback ? 'cursor-default' : ''}
+                    `}
+                  >
+                    <RadioGroupItem value={option.id} id={option.id} />
+                    <span className="flex-1">{option.text}</span>
+                    {feedback && option.id === feedback.correctOptionId && (
+                      <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    )}
+                    {feedback && option.id === selectedOption && !feedback.isCorrect && (
+                      <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                    )}
+                  </Label>
+                ))}
+              </RadioGroup>
+
+              {feedback && (
+                <div className={`mt-4 p-4 rounded-md ${
+                  feedback.isCorrect 
+                    ? 'bg-green-50 border border-green-200 dark:bg-green-950 dark:border-green-800' 
+                    : 'bg-red-50 border border-red-200 dark:bg-red-950 dark:border-red-800'
+                }`}>
+                  <p className={`font-semibold mb-2 ${
+                    feedback.isCorrect ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'
+                  }`}>
+                    {feedback.isCorrect ? '✓ Correct!' : '✗ Incorrect'}
+                  </p>
+                  {feedback.explanation && (
+                    <p className="text-sm text-muted-foreground">{feedback.explanation}</p>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-6 flex gap-3">
+                {!feedback ? (
+                  <Button type="submit" disabled={!selectedOption} className="flex-1">
+                    Submit Answer
+                  </Button>
+                ) : (
+                  <Button type="button" onClick={fetchNextQuestion} className="flex-1">
+                    Next Question →
+                  </Button>
+                )}
               </div>
-              <p className="mt-2 text-sm">{feedback.explanation}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
