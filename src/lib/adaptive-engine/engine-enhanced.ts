@@ -1,5 +1,3 @@
-// src/lib/adaptive-engine/engine-enhanced.ts
-
 import prisma from "@/lib/db";
 import { calculateUCB } from "./ucb";
 import { 
@@ -75,7 +73,7 @@ function applyContentBalancing(
 }
 
 /**
- * Enhanced question selection with exposure control and EAP/MLE
+ * Enhanced question selection with exposure control, EAP/MLE, and QUIZ SETTINGS SUPPORT
  */
 export async function selectNextQuestionForUser(
   userId: string,
@@ -86,17 +84,57 @@ export async function selectNextQuestionForUser(
   console.log(`[ENGINE] User: ${userId}, Quiz: ${quizId}`);
 
   try {
-    // STEP 0: Check stopping criteria
+    // ==========================================
+    // STEP 0: FETCH QUIZ SETTINGS
+    // ==========================================
+    const quizSettings = await prisma.quiz.findUnique({
+      where: { id: quizId },
+      select: {
+        explorationParam: true,
+        maxQuestions: true,
+        topicSelection: true,
+        selectedCells: true,
+      }
+    });
+
+    const explorationParameter = quizSettings?.explorationParam ?? 1.0;
+    const maxQuestionsLimit = quizSettings?.maxQuestions ?? 50;
+    const topicSelectionMode = quizSettings?.topicSelection ?? 'system';
+    const selectedCellIds = topicSelectionMode === 'manual' && quizSettings?.selectedCells
+      ? JSON.parse(quizSettings.selectedCells) as string[]
+      : null;
+
+    console.log(`[ENGINE] Quiz Settings:`, {
+      explorationParameter,
+      maxQuestionsLimit,
+      topicSelectionMode,
+      selectedCellsCount: selectedCellIds?.length ?? 0
+    });
+
+    // ==========================================
+    // STEP 0.1: Check Max Questions Limit
+    // ==========================================
+    const answeredCount = await prisma.userAnswer.count({
+      where: { userId, quizId }
+    });
+
+    if (answeredCount >= maxQuestionsLimit) {
+      console.log(`[ENGINE] Max questions limit reached: ${answeredCount}/${maxQuestionsLimit}`);
+      return null;
+    }
+
+    // ==========================================
+    // STEP 0.2: Check Other Stopping Criteria
+    // ==========================================
     const stoppingCheck = await shouldStopQuiz(userId, quizId);
     
     if (stoppingCheck.shouldStop) {
       console.log(`[ENGINE] Stopping quiz: ${stoppingCheck.reason}`);
-      // Log quiz completion if stopping
       await engineMonitor.trackQuizCompletion(
         userId,
         quizId,
         stoppingCheck.details.questionCount,
-        0, // totalTime - calculate if needed
+        0,
         {
           cellsMastered: stoppingCheck.details.cellsCompleted,
           totalCells: stoppingCheck.details.totalCells,
@@ -107,21 +145,42 @@ export async function selectNextQuestionForUser(
       return null;
     }
 
-    // STEP 1: Get user's current ability estimates for all cells
-    const userMasteries = await prisma.userCellMastery.findMany({
-      where: { 
-        userId,
-        mastery_status: 0 // Only non-mastered cells
-      },
-      include: { cell: true }
-    });
+    // ==========================================
+    // STEP 1: Get User's Ability Estimates (WITH CELL FILTERING)
+    // ==========================================
+    let userMasteries: UserMasteryWithCell[];
+    
+    if (selectedCellIds && selectedCellIds.length > 0) {
+      // Manual mode: only include selected cells
+      userMasteries = await prisma.userCellMastery.findMany({
+        where: { 
+          userId,
+          mastery_status: 0, // Only non-mastered cells
+          cellId: { in: selectedCellIds } // FILTER by selected cells
+        },
+        include: { cell: true }
+      });
+      console.log(`[ENGINE] Manual mode: Loaded ${userMasteries.length} selected cells`);
+    } else {
+      // System recommendation: all unmastered cells
+      userMasteries = await prisma.userCellMastery.findMany({
+        where: { 
+          userId,
+          mastery_status: 0
+        },
+        include: { cell: true }
+      });
+      console.log(`[ENGINE] System mode: Loaded ${userMasteries.length} unmastered cells`);
+    }
 
     if (userMasteries.length === 0) {
-      console.log(`[ENGINE] No available cells (all mastered)`);
+      console.log(`[ENGINE] No available cells`);
       return null;
     }
 
-    // STEP 2: Determine which cell to target next (content balancing)
+    // ==========================================
+    // STEP 2: Determine Target Cell (Content Balancing)
+    // ==========================================
     const { cellSelections, totalSelections } = await getCellSelectionStats(userId, quizId);
     const cellScores = applyContentBalancing(userMasteries, cellSelections, totalSelections);
     
@@ -130,132 +189,125 @@ export async function selectNextQuestionForUser(
       current.score > best.score ? current : best
     );
 
-    console.log(`[ENGINE] Target cell: ${targetCell.cellName} (score: ${targetCell.score.toFixed(2)})`);
+    console.log(`[ENGINE] Target cell: ${targetCell.cellName} (score: ${targetCell.score.toFixed(3)})`);
 
+    // Get the mastery record for this cell
     const mastery = userMasteries.find(m => m.cellId === targetCell.cellId);
     if (!mastery) {
       throw new Error(`Mastery record not found for cell ${targetCell.cellId}`);
     }
 
-    // STEP 3: Get available questions with exposure control
-    const answeredQuestions = await prisma.userAnswer.findMany({
+    // ==========================================
+    // STEP 3: Get Available Questions from Pool
+    // ==========================================
+    const availableQuestions = await questionPoolManager.getAvailableQuestions({
+      cellId: targetCell.cellId,
+      userId,
+      quizId,
+      excludeQuestionIds: []
+    });
+
+    if (availableQuestions.length === 0) {
+      console.log(`[ENGINE] No available questions in cell ${targetCell.cellName}`);
+      // Mark cell as complete and try again
+      await prisma.userCellMastery.update({
+        where: { id: mastery.id },
+        data: { mastery_status: 1 }
+      });
+      return selectNextQuestionForUser(userId, quizId);
+    }
+
+    console.log(`[ENGINE] Found ${availableQuestions.length} available questions`);
+
+    // ==========================================
+    // STEP 4: Calculate Question Scores (KLI + UCB)
+    // ==========================================
+    
+    // Get all answers in current quiz for UCB calculation
+    const allQuizAnswers = await prisma.userAnswer.findMany({
       where: { userId, quizId },
       select: { questionId: true }
     });
 
-    console.log(`[ENGINE] User has answered ${answeredQuestions.length} questions in this quiz`);
-
-    const availableQuestions = await questionPoolManager.getAvailableQuestions({
-      cellId: targetCell.cellId,
-      userId,
-      quizId, // Pass quizId to only exclude questions from current quiz
-      excludeQuestionIds: answeredQuestions.map(a => a.questionId)
+    const totalQuizSelections = allQuizAnswers.length;
+    const questionSelectionCounts = new Map<string, number>();
+    
+    allQuizAnswers.forEach(answer => {
+      const count = questionSelectionCounts.get(answer.questionId) || 0;
+      questionSelectionCounts.set(answer.questionId, count + 1);
     });
 
-    if (availableQuestions.length === 0) {
-      // Check if cell has ANY questions
-      const totalQuestionsInCell = await prisma.question.count({
-        where: { cellId: targetCell.cellId }
-      });
-
-      console.log(`[ENGINE] No available questions for cell ${targetCell.cellName}`);
-      console.log(`[ENGINE] Total questions in cell: ${totalQuestionsInCell}`);
-      console.log(`[ENGINE] Already answered: ${answeredQuestions.length}`);
-      
-      if (totalQuestionsInCell === 0) {
-        console.log(`[ENGINE] ⚠️ Cell has no questions! Please add questions to this cell.`);
-      } else if (totalQuestionsInCell === answeredQuestions.length) {
-        console.log(`[ENGINE] ✓ User has answered all questions in this cell.`);
-      }
-
-      // Log using the monitor's log method
-      engineMonitor.log({
-        userId,
-        quizId,
-        eventType: 'error',
-        data: {
-          message: 'No available questions',
-          cellId: targetCell.cellId,
-          cellName: targetCell.cellName,
-          totalInCell: totalQuestionsInCell,
-          answered: answeredQuestions.length
-        }
-      });
-      return null;
-    }
-
-    console.log(`[ENGINE] ${availableQuestions.length} available questions after exposure filtering`);
-
-    // STEP 4: Calculate information value for each question using KLI
     const questionScores = availableQuestions.map(question => {
+      // Calculate Kullback-Leibler Information
       const kli = calculateKullbackLeiblerInformation(
         mastery.ability_theta,
         question.difficulty_b,
         question.discrimination_a
       );
 
-      return {
-        question,
-        kli,
-        exposurePenalty: question.exposureCount * 0.1 // Penalize frequently used questions
-      };
-    });
+      // Calculate exposure penalty
+      const exposurePenalty = question.exposureCount > 0 
+        ? Math.log(question.exposureCount + 1) * 0.1 
+        : 0;
 
-    // STEP 5: Apply UCB algorithm for exploration-exploitation balance
-    const totalQuizSelections = await prisma.userAnswer.count({
-      where: { userId, quizId }
-    });
+      // Get selection count for this specific question in this quiz
+      const questionSelections = questionSelectionCounts.get(question.id) || 0;
 
-    const ucbScores = questionScores.map(qs => {
-      // Get question-specific selection count
-      const questionSelections = qs.question.exposureCount;
-
-      // UCB score combines information value with exploration bonus
+      // Calculate UCB score with CUSTOM EXPLORATION PARAMETER
       const ucbScore = calculateUCB(
-        qs.kli,                    // Exploitation: information value
-        -qs.exposurePenalty,       // Penalty for overuse
-        1.0,                       // Information weight
+        kli,                       // Exploitation: information value
+        -exposurePenalty,          // Penalty for overuse
+        explorationParameter,      // USE CUSTOM EXPLORATION PARAMETER
         questionSelections,        // This item's selection count
         totalQuizSelections + 1    // Total selections
       );
 
       return {
-        ...qs,
+        question,
+        kli,
+        exposurePenalty,
         ucbScore
       };
     });
 
     // Sort by UCB score and select the best
-    ucbScores.sort((a, b) => b.ucbScore - a.ucbScore);
-    const selectedQuestion = ucbScores[0].question;
+    questionScores.sort((a, b) => b.ucbScore - a.ucbScore);
+    const selectedQuestion = questionScores[0].question;
 
     console.log(`[ENGINE] Selected question: ${selectedQuestion.id}`);
-    console.log(`[ENGINE] - KLI: ${ucbScores[0].kli.toFixed(3)}`);
-    console.log(`[ENGINE] - UCB Score: ${ucbScores[0].ucbScore.toFixed(3)}`);
+    console.log(`[ENGINE] - KLI: ${questionScores[0].kli.toFixed(3)}`);
+    console.log(`[ENGINE] - UCB Score: ${questionScores[0].ucbScore.toFixed(3)}`);
     console.log(`[ENGINE] - Difficulty: ${selectedQuestion.difficulty_b.toFixed(2)}`);
     console.log(`[ENGINE] - User ability: ${mastery.ability_theta.toFixed(2)}`);
     console.log(`[ENGINE] - Exposure count: ${selectedQuestion.exposureCount}`);
+    console.log(`[ENGINE] - Exploration param: ${explorationParameter.toFixed(2)}`);
 
-    // STEP 6: Track question usage
+    // ==========================================
+    // STEP 5: Track Question Usage
+    // ==========================================
     await questionPoolManager.trackQuestionUsage(
       selectedQuestion.id,
       userId,
       mastery.ability_theta
     );
 
-    // STEP 7: Update cell selection stats
+    // ==========================================
+    // STEP 6: Update Cell Selection Stats
+    // ==========================================
     await prisma.userCellMastery.update({
       where: { id: mastery.id },
       data: { selection_count: { increment: 1 } }
     });
 
-    // Log performance metrics
+    // ==========================================
+    // STEP 7: Log Performance Metrics
+    // ==========================================
     await engineMonitor.trackQuestionSelection(
       userId,
       quizId,
       selectedQuestion.id,
       targetCell.cellId,
-      ucbScores[0].ucbScore,
+      questionScores[0].ucbScore,
       timer.elapsed()
     );
 
@@ -298,7 +350,10 @@ export async function processUserAnswer(
   // Get question and check correctness
   const question = await prisma.question.findUnique({
     where: { id: questionId },
-    include: { answerOptions: true }
+    include: { 
+      answerOptions: true,
+      cell: true  // ✅ ADD THIS LINE
+    }
   });
 
   if (!question) {
@@ -328,7 +383,7 @@ export async function processUserAnswer(
 
   const oldTheta = mastery.ability_theta;
 
-  // Save the answer with ability at time of question
+  // Save the answer with current ability
   await prisma.userAnswer.create({
     data: {
       userId,
@@ -337,59 +392,67 @@ export async function processUserAnswer(
       selectedOptionId,
       isCorrect,
       abilityAtTime: oldTheta,
-      responseTime: null // Can be added if tracked on frontend
+      responseTime: null // Can be added later
     }
   });
 
-  // Update question statistics
-  await questionPoolManager.updateQuestionAfterResponse(questionId, isCorrect);
-
-  // Get all responses for this cell
-  const cellAnswers = await prisma.userAnswer.findMany({
+  // Get all responses for this cell to re-estimate ability
+  const cellResponses = await prisma.userAnswer.findMany({
     where: {
       userId,
       question: { cellId: question.cellId }
     },
-    include: { question: true }
+    include: {
+      question: {
+        select: {
+          difficulty_b: true,
+          discrimination_a: true
+        }
+      }
+    },
+    orderBy: { createdAt: 'asc' }
   });
 
-  // Re-estimate ability using enhanced estimator
-  const responses: IRTResponse[] = cellAnswers.map(ans => ({
-    difficulty_b: ans.question.difficulty_b,
-    discrimination_a: ans.question.discrimination_a,
-    isCorrect: ans.isCorrect
+  // Build response pattern
+  const responses: IRTResponse[] = cellResponses.map(answer => ({
+    difficulty_b: answer.question.difficulty_b,
+    discrimination_a: answer.question.discrimination_a,
+    isCorrect: answer.isCorrect
   }));
 
-  const abilityEstimate = estimateAbility(responses, 0, 1, oldTheta);
+  // Estimate new ability using EAP or MLE
+  const abilityEstimate = estimateAbility(responses, oldTheta, 1.0);
 
-  // Update mastery record with new estimate
+  console.log(`[ENGINE] Ability update: ${oldTheta.toFixed(2)} → ${abilityEstimate.theta.toFixed(2)} (SEM: ${abilityEstimate.sem.toFixed(3)})`);
+
+  // Update mastery record
   await prisma.userCellMastery.update({
     where: { id: mastery.id },
     data: {
       ability_theta: abilityEstimate.theta,
       sem: abilityEstimate.sem,
       confidence: abilityEstimate.confidence,
-      lastEstimated: new Date(),
-      responseCount: responses.length
+      responseCount: responses.length,
+      lastEstimated: new Date()
     }
   });
 
-  // Log to ability history
-  await prisma.abilityHistory.create({
-    data: {
+  // Check for mastery achievement
+  if (abilityEstimate.sem < 0.3 && responses.length >= 3) {
+    await prisma.userCellMastery.update({
+      where: { id: mastery.id },
+      data: { mastery_status: 1 }
+    });
+
+    await engineMonitor.trackMastery(
       userId,
-      cellId: question.cellId,
-      ability_theta: abilityEstimate.theta,
-      confidence: abilityEstimate.confidence,
-      quizId
-    }
-  });
-
-  console.log(
-    `[ENGINE] Ability updated: ${oldTheta.toFixed(2)} → ${abilityEstimate.theta.toFixed(2)} ` +
-    `(${isCorrect ? 'correct' : 'incorrect'}, method: ${abilityEstimate.method}, ` +
-    `confidence: ${abilityEstimate.confidence.toFixed(2)})`
-  );
+      quizId,
+      question.cellId,
+      question.cell.name,
+      responses.length,
+      abilityEstimate.confidence
+    );
+  }
 
   // Track answer processing
   engineMonitor.trackAnswerProcessing(
@@ -400,44 +463,15 @@ export async function processUserAnswer(
     timer.elapsed()
   );
 
+  console.log(`[ENGINE] Answer processing completed in ${timer.elapsed()}ms`);
+
   return {
     isCorrect,
     abilityUpdate: {
       oldTheta,
       newTheta: abilityEstimate.theta,
       confidence: abilityEstimate.confidence,
-      method: abilityEstimate.method
+      method: responses.length < 10 ? 'EAP' : 'MLE'
     }
   };
-}
-
-/**
- * Initialize user mastery records for a new quiz
- */
-export async function initializeUserMastery(userId: string): Promise<void> {
-  const cells = await prisma.cell.findMany();
-
-  for (const cell of cells) {
-    await prisma.userCellMastery.upsert({
-      where: {
-        userId_cellId: {
-          userId,
-          cellId: cell.id
-        }
-      },
-      create: {
-        userId,
-        cellId: cell.id,
-        ability_theta: 0,
-        selection_count: 0,
-        mastery_status: 0,
-        sem: null,
-        confidence: 0,
-        responseCount: 0
-      },
-      update: {} // Don't overwrite existing records
-    });
-  }
-
-  console.log(`[ENGINE] Initialized mastery records for user ${userId}`);
 }

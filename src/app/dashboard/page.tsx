@@ -1,3 +1,6 @@
+// src/app/dashboard/page.tsx
+// Complete Updated Version with Custom Quiz Settings Button
+
 import { auth } from "@/auth";
 import prisma from "@/lib/db";
 import { redirect } from "next/navigation";
@@ -5,7 +8,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { handleSignOut, startNewQuiz } from "@/app/actions";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { PerformanceChart, ChartData } from "@/app/dashboard/PerformanceChart"; // Import our new chart
+import { PerformanceChart, ChartData } from "@/app/dashboard/PerformanceChart";
+import { Settings, Zap } from "lucide-react"; // Import icons
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -16,8 +20,8 @@ export default async function DashboardPage() {
   // --- 1. Fetch All Necessary Data in One Go ---
   const completedQuizzes = await prisma.quiz.findMany({
     where: { 
-        userId: session.user.id,
-        status: 'completed' 
+      userId: session.user.id,
+      status: 'completed' 
     },
     include: {
       userAnswers: {
@@ -29,12 +33,15 @@ export default async function DashboardPage() {
           }
         }
       }
+    },
+    orderBy: {
+      completedAt: 'desc'
     }
   });
 
   // --- 2. Process Data for the UI Components ---
 
-  // For the Performance Chart (Point 1)
+  // For the Performance Chart
   const cellPerformance: { [key: string]: { correct: number; total: number } } = {};
 
   completedQuizzes.forEach(quiz => {
@@ -55,8 +62,7 @@ export default async function DashboardPage() {
     score: Math.round((data.correct / data.total) * 100),
   }));
 
-
-  // For the Overall Progress (Point 3)
+  // For the Overall Progress
   const totalCorrect = Object.values(cellPerformance).reduce((sum, cell) => sum + cell.correct, 0);
   const totalAnswered = Object.values(cellPerformance).reduce((sum, cell) => sum + cell.total, 0);
   const overallScore = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
@@ -65,38 +71,71 @@ export default async function DashboardPage() {
   // --- 3. Render the Dashboard ---
   return (
     <div className="container mx-auto p-8">
+      {/* Header Section */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Welcome back, {session.user.name || 'User'}</h1>
           <p className="text-muted-foreground">Here is an overview of your progress and performance.</p>
         </div>
-        <div className="flex items-center gap-4">
-          <form action={startNewQuiz}>
-            <Button type="submit">Start New Quiz</Button>
-          </form>
+        <div className="flex items-center gap-3">
           <form action={handleSignOut}>
             <Button variant="outline" type="submit">Sign Out</Button>
           </form>
         </div>
       </div>
 
+      {/* Start Quiz Section - UPDATED WITH TWO BUTTONS */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Start a New Quiz</CardTitle>
+          <CardDescription>
+            Choose quick start or customize your quiz settings
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Quick Start Button */}
+            <form action={startNewQuiz} className="flex-1">
+              <Button type="submit" className="w-full h-12" size="lg">
+                <Zap className="w-5 h-5 mr-2" />
+                Quick Start Quiz
+              </Button>
+            </form>
+            
+            {/* Custom Settings Button */}
+            <Link href="/quiz/settings" className="flex-1">
+              <Button variant="outline" className="w-full h-12" size="lg">
+                <Settings className="w-5 h-5 mr-2" />
+                Custom Quiz Settings
+              </Button>
+            </Link>
+          </div>
+          <p className="text-xs text-muted-foreground mt-3 text-center">
+            Quick start uses default settings. Custom settings let you configure exploration, timer, max questions, and topics.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Performance and Progress Cards */}
       <div className="grid gap-6 md:grid-cols-3">
+        {/* Performance Chart */}
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle>Performance by Topic</CardTitle>
             <CardDescription>Your average scores across different topics.</CardDescription>
           </CardHeader>
           <CardContent>
-             {chartData.length > 0 ? (
-                <PerformanceChart data={chartData} />
-             ) : (
-                <div className="h-60 bg-secondary rounded-md flex items-center justify-center">
-                    <p className="text-muted-foreground">Complete a quiz to see your performance data.</p>
-                </div>
-             )}
+            {chartData.length > 0 ? (
+              <PerformanceChart data={chartData} />
+            ) : (
+              <div className="h-60 bg-secondary rounded-md flex items-center justify-center">
+                <p className="text-muted-foreground">Complete a quiz to see your performance data.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
+        {/* Overall Progress */}
         <Card>
           <CardHeader>
             <CardTitle>Overall Progress</CardTitle>
@@ -113,6 +152,7 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
+      {/* Quiz History */}
       <Card className="mt-6">
         <CardHeader>
           <CardTitle>Quiz History</CardTitle>
@@ -131,8 +171,7 @@ export default async function DashboardPage() {
                       <p className="font-semibold">Quiz on {new Date(quiz.createdAt).toLocaleDateString()}</p>
                       <p className="text-sm text-muted-foreground">Score: {score}% ({correct}/{total})</p>
                     </div>
-                    {/* Point 2: This link now correctly points to the dynamic results page */}
-                    <Button asChild variant="secondary">
+                    <Button asChild variant="secondary" size="sm">
                       <Link href={`/quiz/results/${quiz.id}`}>View Details</Link>
                     </Button>
                   </li>

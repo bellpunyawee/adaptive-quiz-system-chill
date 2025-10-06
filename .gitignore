@@ -1,43 +1,138 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# .gitignore for Next.js Adaptive Quiz System
 
-# dependencies
-/node_modules
+# Dependencies
+node_modules/
 /.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+.pnp.js
+.yarn/install-state.gz
 
-# testing
+# Testing
 /coverage
+*.lcov
+.nyc_output
 
-# next.js
+# Next.js
 /.next/
 /out/
+next-env.d.ts
 
-# production
+# Production
 /build
+/dist
 
-# misc
-.DS_Store
-*.pem
-
-# debug
+# Debugging
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+lerna-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# Local env files
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# vercel
+# Vercel
 .vercel
 
-# typescript
+# TypeScript
 *.tsbuildinfo
-next-env.d.ts
 
-/src/generated/prisma
+# OS Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.iml
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+prisma/dev.db
+prisma/dev.db-journal
+prisma/test.db
+prisma/test.db-journal
+*.db
+*.db-journal
+
+# Prisma migrations (optional - uncomment if you don't want to track migrations)
+# prisma/migrations/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# Editor backup files
+*.bak
+*.gho
+*.ori
+*.orig
+*.rej
+
+# Package manager lock files (choose one based on your preference)
+# Uncomment the ones you DON'T want to track:
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Optional: npm package files
+*.tgz
+
+# Optional: REPL history
+.node_repl_history
+
+# Optional: Output of 'npm pack'
+*.tgz
+
+# Optional: Yarn Integrity file
+.yarn-integrity
+
+# Optional: dotenv environment variable files
+.env.backup
+
+# Optional: Stores VSCode versions used for testing
+.vscode-test
+
+# Optional: Turborepo cache
+.turbo
+
+# Custom project-specific files
+# Add any custom files/folders specific to your project here
+
+# Adaptive Quiz System specific
+/uploads/
+/public/uploads/
+/quiz-data/
+/exports/
+
+# Backup files
+*.backup
+*.old
+
+# Documentation build output (if using docs generators)
+/docs/.vitepress/dist
+/docs/.vitepress/cache

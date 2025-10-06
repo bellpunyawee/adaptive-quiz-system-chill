@@ -1,13 +1,12 @@
-// src/lib/adaptive-engine/stopping-criteria.ts
 import prisma from "@/lib/db";
 import { calculateKullbackLeiblerInformation } from "./irt-estimator";
 
 export interface StoppingConfig {
   minQuestions: number;
   maxQuestions: number;
-  targetSEM: number; // Standard Error of Measurement
-  confidenceLevel: number; // e.g., 0.95 for 95% confidence
-  minInformationGain: number; // Stop if information gain is too low
+  targetSEM: number;
+  confidenceLevel: number;
+  minInformationGain: number;
 }
 
 const DEFAULT_CONFIG: StoppingConfig = {
@@ -19,8 +18,7 @@ const DEFAULT_CONFIG: StoppingConfig = {
 };
 
 /**
- * Calculate Standard Error of Measurement based on Kullback-Leibler Information
- * SEM = 1 / sqrt(total_information)
+ * Calculate Standard Error of Measurement
  */
 export function calculateSEM(totalInformation: number): number {
   if (totalInformation <= 0) return Infinity;
@@ -28,7 +26,7 @@ export function calculateSEM(totalInformation: number): number {
 }
 
 /**
- * Calculate total Kullback-Leibler Information gathered so far
+ * Calculate total Kullback-Leibler Information
  */
 export async function calculateTotalInformation(
   userId: string,
@@ -43,7 +41,6 @@ export async function calculateTotalInformation(
     }
   });
 
-  // Get user's current ability for each cell
   const masteries = await prisma.userCellMastery.findMany({
     where: { userId },
     select: { cellId: true, ability_theta: true }
@@ -53,7 +50,6 @@ export async function calculateTotalInformation(
     masteries.map((m) => [m.cellId, m.ability_theta])
   );
 
-  // Calculate Kullback-Leibler Information per cell
   const informationPerCell = new Map<string, number>();
 
   answers.forEach((answer) => {
@@ -75,6 +71,7 @@ export async function calculateTotalInformation(
 
 /**
  * Check if stopping criteria are met
+ * NOW USES QUIZ-SPECIFIC MAX QUESTIONS SETTING
  */
 export async function shouldStopQuiz(
   userId: string,
@@ -90,6 +87,18 @@ export async function shouldStopQuiz(
     totalCells: number;
   };
 }> {
+  
+  // ===== FETCH QUIZ SETTINGS FOR MAX QUESTIONS =====
+  const quiz = await prisma.quiz.findUnique({
+    where: { id: quizId },
+    select: { maxQuestions: true }
+  });
+
+  // Use quiz-specific max questions if available, otherwise use config default
+  const maxQuestionsLimit = quiz?.maxQuestions ?? config.maxQuestions;
+
+  console.log(`[STOPPING] Using max questions limit: ${maxQuestionsLimit}`);
+
   // Get basic quiz stats
   const [answerCount, allCells, masteredCells] = await Promise.all([
     prisma.userAnswer.count({ where: { userId, quizId } }),
@@ -99,11 +108,11 @@ export async function shouldStopQuiz(
     })
   ]);
 
-  // Hard stop conditions
-  if (answerCount >= config.maxQuestions) {
+  // ===== HARD STOP: MAX QUESTIONS (USES QUIZ SETTING) =====
+  if (answerCount >= maxQuestionsLimit) {
     return {
       shouldStop: true,
-      reason: 'Maximum questions reached',
+      reason: 'max_questions_reached',
       details: {
         questionCount: answerCount,
         averageSEM: 0,
@@ -113,10 +122,11 @@ export async function shouldStopQuiz(
     };
   }
 
+  // Minimum questions check
   if (answerCount < config.minQuestions) {
     return {
       shouldStop: false,
-      reason: 'Minimum questions not yet reached',
+      reason: 'minimum_not_reached',
       details: {
         questionCount: answerCount,
         averageSEM: Infinity,
@@ -130,7 +140,7 @@ export async function shouldStopQuiz(
   if (masteredCells === allCells) {
     return {
       shouldStop: true,
-      reason: 'All cells mastered',
+      reason: 'all_cells_mastered',
       details: {
         questionCount: answerCount,
         averageSEM: 0,
@@ -156,7 +166,7 @@ export async function shouldStopQuiz(
   if (averageSEM <= config.targetSEM) {
     return {
       shouldStop: true,
-      reason: `Precision target achieved (SEM: ${averageSEM.toFixed(3)})`,
+      reason: 'precision_achieved',
       details: {
         questionCount: answerCount,
         averageSEM,
@@ -198,12 +208,12 @@ export async function shouldStopQuiz(
       );
     });
 
-    const avgRecentInformation = totalRecentInformation / recentAnswers.length;
+    const avgRecentInfo = totalRecentInformation / recentAnswers.length;
 
-    if (avgRecentInformation < config.minInformationGain) {
+    if (avgRecentInfo < config.minInformationGain) {
       return {
         shouldStop: true,
-        reason: 'Diminishing returns - information gain too low',
+        reason: 'low_information_gain',
         details: {
           questionCount: answerCount,
           averageSEM,
@@ -214,9 +224,10 @@ export async function shouldStopQuiz(
     }
   }
 
+  // Continue quiz
   return {
     shouldStop: false,
-    reason: 'Continue testing',
+    reason: 'criteria_not_met',
     details: {
       questionCount: answerCount,
       averageSEM,
@@ -227,76 +238,43 @@ export async function shouldStopQuiz(
 }
 
 /**
- * Get detailed quiz progress report
+ * Get detailed quiz progress
  */
-export async function getQuizProgress(
-  userId: string,
-  quizId: string
-): Promise<{
-  totalQuestions: number;
-  cellProgress: Array<{
-    cellName: string;
-    questionsAnswered: number;
-    correctAnswers: number;
-    accuracy: number;
-    currentTheta: number;
-    informationGathered: number;
-    sem: number;
-    isMastered: boolean;
-  }>;
-  overallAccuracy: number;
-  estimatedCompletion: number; // 0-1
-}> {
-  const [answers, allCells, masteries] = await Promise.all([
-    prisma.userAnswer.findMany({
-      where: { userId, quizId },
-      include: {
-        question: {
-          include: { cell: true }
-        }
+export async function getQuizProgress(userId: string, quizId: string) {
+  const answers = await prisma.userAnswer.findMany({
+    where: { userId, quizId },
+    include: {
+      question: {
+        include: { cell: true }
       }
-    }),
-    prisma.cell.findMany(),
-    prisma.userCellMastery.findMany({
-      where: { userId },
-      include: { cell: true }
-    })
-  ]);
+    }
+  });
 
-  const informationPerCell = await calculateTotalInformation(userId, quizId);
+  const allCells = await prisma.cell.findMany();
+  const masteries = await prisma.userCellMastery.findMany({
+    where: { userId }
+  });
 
-  // Group answers by cell
-  const cellStats = new Map<string, {
-    total: number;
-    correct: number;
-    cellName: string;
-  }>();
-
+  const cellStats = new Map<string, { correct: number; total: number }>();
   answers.forEach((ans) => {
     const cellId = ans.question.cellId;
-    const stats = cellStats.get(cellId) || { 
-      total: 0, 
-      correct: 0,
-      cellName: ans.question.cell.name 
-    };
+    const stats = cellStats.get(cellId) || { correct: 0, total: 0 };
     stats.total++;
     if (ans.isCorrect) stats.correct++;
     cellStats.set(cellId, stats);
   });
 
-  const cellProgress = allCells.map(cell => {
-    const stats = cellStats.get(cell.id) || { 
-      total: 0, 
-      correct: 0,
-      cellName: cell.name 
-    };
-    const mastery = masteries.find(m => m.cellId === cell.id);
+  const informationPerCell = await calculateTotalInformation(userId, quizId);
+
+  const cellProgress = allCells.map((cell) => {
+    const stats = cellStats.get(cell.id) || { correct: 0, total: 0 };
+    const mastery = masteries.find((m) => m.cellId === cell.id);
     const information = informationPerCell.get(cell.id) || 0;
 
     return {
+      cellId: cell.id,
       cellName: cell.name,
       questionsAnswered: stats.total,
-      correctAnswers: stats.correct,
       accuracy: stats.total > 0 ? stats.correct / stats.total : 0,
       currentTheta: mastery?.ability_theta || 0,
       informationGathered: information,
@@ -308,12 +286,11 @@ export async function getQuizProgress(
   const totalCorrect = answers.filter((a) => a.isCorrect).length;
   const overallAccuracy = answers.length > 0 ? totalCorrect / answers.length : 0;
 
-  // Estimate completion based on mastered cells and information gathered
   const masteredCount = masteries.filter((m) => m.mastery_status === 1).length;
   const masteryProgress = masteredCount / allCells.length;
   
   const avgSEM = cellProgress.reduce((sum: number, cp) => sum + cp.sem, 0) / cellProgress.length;
-  const precisionProgress = Math.max(0, Math.min(1, 1 - (avgSEM / 1.0))); // Normalize to 0-1
+  const precisionProgress = Math.max(0, Math.min(1, 1 - (avgSEM / 1.0)));
 
   const estimatedCompletion = (masteryProgress * 0.7) + (precisionProgress * 0.3);
 

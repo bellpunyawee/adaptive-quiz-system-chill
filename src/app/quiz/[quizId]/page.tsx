@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { CheckCircle, XCircle, Loader2, X, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, X, Clock, AlertTriangle } from 'lucide-react';
 import { useStopwatch } from '@/hooks/use-stopwatch';
 import {
   AlertDialog,
@@ -37,7 +37,6 @@ interface Feedback {
 
 type QuizStatus = 'loading' | 'in-progress' | 'completed' | 'error';
 
-// Answer history item
 interface AnswerHistory {
   questionNumber: number;
   isCorrect: boolean;
@@ -54,6 +53,61 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
   const [answerHistory, setAnswerHistory] = useState<AnswerHistory[]>([]);
   const { time, stopTimer } = useStopwatch();
 
+  // ===== TIMER FUNCTIONALITY =====
+  const [timerLimit, setTimerLimit] = useState<number | null>(null);
+  const [timeWarning, setTimeWarning] = useState(false);
+  const [timeUp, setTimeUp] = useState(false);
+
+  // Fetch quiz settings on mount
+  useEffect(() => {
+    async function fetchQuizSettings() {
+      try {
+        const response = await fetch(`/api/quiz/${params.quizId}/settings`);
+        if (response.ok) {
+          const { timerMinutes } = await response.json();
+          if (timerMinutes) {
+            setTimerLimit(timerMinutes);
+            console.log(`[TIMER] Limit set to ${timerMinutes} minutes`);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch quiz settings:', error);
+      }
+    }
+    fetchQuizSettings();
+  }, [params.quizId]);
+
+  // Monitor timer against limit
+  useEffect(() => {
+    if (timerLimit && time) {
+      const [minutes, seconds] = time.split(':').map(Number);
+      const totalMinutes = minutes + (seconds / 60);
+      
+      // Warning at 80% of time limit
+      const warningThreshold = timerLimit * 0.8;
+      if (totalMinutes >= warningThreshold && !timeWarning) {
+        setTimeWarning(true);
+        console.log(`[TIMER] Warning threshold reached`);
+      }
+      
+      // Time's up!
+      if (totalMinutes >= timerLimit && !timeUp) {
+        setTimeUp(true);
+        console.log(`[TIMER] Time limit reached!`);
+      }
+    }
+  }, [time, timerLimit, timeWarning, timeUp]);
+
+  // Auto-submit when time's up (if an answer is selected)
+  useEffect(() => {
+    if (timeUp && selectedOption && !feedback) {
+      console.log(`[TIMER] Auto-submitting due to time limit`);
+      handleSubmit(new Event('submit') as any);
+    }
+  }, [timeUp, selectedOption, feedback]);
+
+  // ===== END TIMER FUNCTIONALITY =====
+
   const fetchNextQuestion = async () => {
     setFeedback(null);
     setSelectedOption(null);
@@ -65,27 +119,13 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
       
       const data = await res.json();
       
-      console.log('[DEBUG] API Response:', data); // Debug log
-      
       if (data.status === 'completed') {
         setQuizStatus('completed');
         stopTimer();
       } else {
         setQuestion(data.question);
         setQuizStatus('in-progress');
-        
-        // Initialize answer history if this is the first load
-        if (answerHistory.length === 0 && data.question.answeredCount > 0) {
-          // Load existing answers from the server
-          const answersRes = await fetch(`/api/quiz/${params.quizId}/answers`);
-          if (answersRes.ok) {
-            const answersData = await answersRes.json();
-            setAnswerHistory(answersData.map((a: any, index: number) => ({
-              questionNumber: index + 1,
-              isCorrect: a.isCorrect
-            })));
-          }
-        }
+        setTimeUp(false); // Reset time up flag for new question
       }
     } catch (error) {
       console.error(error);
@@ -127,7 +167,6 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
 
   const handleAbort = async () => {
     try {
-      // Mark quiz as aborted/incomplete
       await fetch(`/api/quiz/${params.quizId}/abort`, {
         method: 'POST',
       });
@@ -183,9 +222,19 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold">Adaptive Quiz</h1>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span className="font-mono">{time}</span>
+            <div className={`flex items-center gap-2 text-sm ${
+              timeWarning ? 'text-orange-600 font-bold' : 
+              timeUp ? 'text-red-600 font-bold' : 
+              'text-muted-foreground'
+            }`}>
+              <Clock className={`h-4 w-4 ${timeUp ? 'animate-pulse' : ''}`} />
+              <span className="font-mono">
+                {time}
+                {timerLimit && ` / ${timerLimit}:00`}
+              </span>
+              {timeWarning && !timeUp && (
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+              )}
             </div>
           </div>
           
@@ -213,7 +262,17 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
           </AlertDialog>
         </div>
 
-        {/* Progress indicator with colored dots */}
+        {/* Time Up Warning Banner */}
+        {timeUp && (
+          <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
+              <AlertTriangle className="h-5 w-5" />
+              <p className="font-semibold">Time's up! Please submit your answer or move to the next question.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Progress indicator */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">
