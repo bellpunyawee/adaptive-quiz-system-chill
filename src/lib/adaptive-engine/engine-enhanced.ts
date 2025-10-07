@@ -352,7 +352,7 @@ export async function processUserAnswer(
     where: { id: questionId },
     include: { 
       answerOptions: true,
-      cell: true  // ✅ ADD THIS LINE
+      cell: true
     }
   });
 
@@ -383,19 +383,6 @@ export async function processUserAnswer(
 
   const oldTheta = mastery.ability_theta;
 
-  // Save the answer with current ability
-  await prisma.userAnswer.create({
-    data: {
-      userId,
-      quizId,
-      questionId,
-      selectedOptionId,
-      isCorrect,
-      abilityAtTime: oldTheta,
-      responseTime: null // Can be added later
-    }
-  });
-
   // Get all responses for this cell to re-estimate ability
   const cellResponses = await prisma.userAnswer.findMany({
     where: {
@@ -413,19 +400,24 @@ export async function processUserAnswer(
     orderBy: { createdAt: 'asc' }
   });
 
-  // Build response pattern
+  // Build response pattern for IRT estimation
   const responses: IRTResponse[] = cellResponses.map(answer => ({
     difficulty_b: answer.question.difficulty_b,
     discrimination_a: answer.question.discrimination_a,
     isCorrect: answer.isCorrect
   }));
 
+  console.log(`[ENGINE] Cell responses: ${cellResponses.length} answers`);
+
   // Estimate new ability using EAP or MLE
   const abilityEstimate = estimateAbility(responses, oldTheta, 1.0);
 
-  console.log(`[ENGINE] Ability update: ${oldTheta.toFixed(2)} → ${abilityEstimate.theta.toFixed(2)} (SEM: ${abilityEstimate.sem.toFixed(3)})`);
+  console.log(
+    `[ENGINE] Ability update: ${oldTheta.toFixed(2)} → ${abilityEstimate.theta.toFixed(2)} ` +
+    `(SEM: ${abilityEstimate.sem.toFixed(3)}, method: ${abilityEstimate.method})`
+  );
 
-  // Update mastery record
+  // Update mastery record with new ability estimate
   await prisma.userCellMastery.update({
     where: { id: mastery.id },
     data: {
@@ -438,12 +430,16 @@ export async function processUserAnswer(
   });
 
   // Check for mastery achievement
+  // Criteria: Low standard error AND sufficient responses
   if (abilityEstimate.sem < 0.3 && responses.length >= 3) {
     await prisma.userCellMastery.update({
       where: { id: mastery.id },
       data: { mastery_status: 1 }
     });
 
+    console.log(`[ENGINE] 🎉 Mastery achieved for cell ${question.cell.name}!`);
+
+    // Track mastery achievement
     await engineMonitor.trackMastery(
       userId,
       quizId,
@@ -454,7 +450,7 @@ export async function processUserAnswer(
     );
   }
 
-  // Track answer processing
+  // Track answer processing performance
   engineMonitor.trackAnswerProcessing(
     userId,
     quizId,

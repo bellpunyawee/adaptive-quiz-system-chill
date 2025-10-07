@@ -48,7 +48,7 @@ export async function GET(req: Request) {
 
     // Get total questions count and answered count
     const [totalQuestions, answeredCount] = await Promise.all([
-      prisma.question.count(), // Total available questions
+      prisma.question.count(),
       prisma.userAnswer.count({
         where: { quizId: quizId, userId: session.user.id }
       })
@@ -107,6 +107,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
     }
 
+    // ===== CRITICAL FIX: Check for duplicate submission =====
+    const existingAnswer = await prisma.userAnswer.findFirst({
+      where: {
+        userId: session.user.id,
+        quizId: quizId,
+        questionId: questionId,
+      }
+    });
+
+    if (existingAnswer) {
+      console.log(`[API] Duplicate submission detected for question ${questionId}, returning existing answer`);
+      
+      // Return the existing feedback instead of creating duplicate
+      const correctOption = await prisma.answerOption.findFirst({
+        where: { questionId: questionId, isCorrect: true },
+      });
+
+      const question = await prisma.question.findUnique({
+        where: { id: questionId }
+      });
+
+      return NextResponse.json({
+        isCorrect: existingAnswer.isCorrect,
+        correctOptionId: correctOption?.id || '',
+        explanation: question?.explanation || 'No explanation available.',
+      });
+    }
+
     // Validate and get correct answer
     const [question, correctOption] = await Promise.all([
       prisma.question.findUnique({
@@ -124,7 +152,16 @@ export async function POST(req: Request) {
 
     const isCorrect = selectedOptionId === correctOption.id;
 
-    // Record the answer
+    // Record the answer (with abilityAtTime for tracking)
+    const userMastery = await prisma.userCellMastery.findUnique({
+      where: {
+        userId_cellId: {
+          userId: session.user.id,
+          cellId: question.cellId
+        }
+      }
+    });
+
     await prisma.userAnswer.create({
       data: {
         userId: session.user.id,
@@ -132,10 +169,13 @@ export async function POST(req: Request) {
         questionId: questionId,
         selectedOptionId: selectedOptionId,
         isCorrect: isCorrect,
+        abilityAtTime: userMastery?.ability_theta || 0,
       },
     });
 
-    // Process answer through adaptive engine
+    console.log(`[API] Answer recorded: Question ${questionId}, Correct: ${isCorrect}`);
+
+    // Process answer through adaptive engine (DOES NOT create duplicate)
     await processUserAnswer(
       session.user.id, 
       quizId, 

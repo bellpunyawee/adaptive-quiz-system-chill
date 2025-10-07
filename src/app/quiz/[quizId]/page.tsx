@@ -1,3 +1,4 @@
+// src/app/quiz/[quizId]/page.tsx
 'use client';
 
 import { useState, useEffect, use } from 'react';
@@ -7,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { CheckCircle, XCircle, Loader2, X, Clock, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, X, Clock, AlertTriangle, Home, ChevronRight } from 'lucide-react';
 import { useStopwatch } from '@/hooks/use-stopwatch';
 import {
   AlertDialog,
@@ -53,12 +54,10 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
   const [answerHistory, setAnswerHistory] = useState<AnswerHistory[]>([]);
   const { time, stopTimer } = useStopwatch();
 
-  // ===== TIMER FUNCTIONALITY =====
   const [timerLimit, setTimerLimit] = useState<number | null>(null);
   const [timeWarning, setTimeWarning] = useState(false);
   const [timeUp, setTimeUp] = useState(false);
 
-  // Fetch quiz settings on mount
   useEffect(() => {
     async function fetchQuizSettings() {
       try {
@@ -67,7 +66,6 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
           const { timerMinutes } = await response.json();
           if (timerMinutes) {
             setTimerLimit(timerMinutes);
-            console.log(`[TIMER] Limit set to ${timerMinutes} minutes`);
           }
         }
       } catch (error) {
@@ -77,36 +75,27 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
     fetchQuizSettings();
   }, [params.quizId]);
 
-  // Monitor timer against limit
   useEffect(() => {
     if (timerLimit && time) {
       const [minutes, seconds] = time.split(':').map(Number);
       const totalMinutes = minutes + (seconds / 60);
       
-      // Warning at 80% of time limit
       const warningThreshold = timerLimit * 0.8;
       if (totalMinutes >= warningThreshold && !timeWarning) {
         setTimeWarning(true);
-        console.log(`[TIMER] Warning threshold reached`);
       }
       
-      // Time's up!
       if (totalMinutes >= timerLimit && !timeUp) {
         setTimeUp(true);
-        console.log(`[TIMER] Time limit reached!`);
       }
     }
   }, [time, timerLimit, timeWarning, timeUp]);
 
-  // Auto-submit when time's up (if an answer is selected)
   useEffect(() => {
     if (timeUp && selectedOption && !feedback) {
-      console.log(`[TIMER] Auto-submitting due to time limit`);
       handleSubmit(new Event('submit') as any);
     }
   }, [timeUp, selectedOption, feedback]);
-
-  // ===== END TIMER FUNCTIONALITY =====
 
   const fetchNextQuestion = async () => {
     setFeedback(null);
@@ -125,7 +114,7 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
       } else {
         setQuestion(data.question);
         setQuizStatus('in-progress');
-        setTimeUp(false); // Reset time up flag for new question
+        setTimeUp(false);
       }
     } catch (error) {
       console.error(error);
@@ -155,7 +144,6 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
       const feedbackData = await res.json();
       setFeedback(feedbackData);
       
-      // Add to answer history
       setAnswerHistory([...answerHistory, {
         questionNumber: question.answeredCount + 1,
         isCorrect: feedbackData.isCorrect
@@ -179,7 +167,7 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
 
   if (quizStatus === 'loading') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
+      <div className="flex flex-col items-center justify-center min-h-screen animate-in fade-in duration-300">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
         <p className="mt-4 text-muted-foreground">Loading next question...</p>
       </div>
@@ -188,7 +176,7 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
   
   if (quizStatus === 'completed') {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen animate-in fade-in duration-300">
         <Card className="w-full max-w-lg text-center p-6">
           <CardHeader>
             <CardTitle className="text-2xl">Quiz Complete!</CardTitle>
@@ -216,13 +204,24 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
   }
 
   return (
-    <div className="min-h-screen p-4 bg-muted/40">
-      <div className="container mx-auto max-w-4xl">
+    <div className="min-h-screen bg-muted/40 animate-in fade-in duration-300">
+      <div className="container mx-auto max-w-4xl p-8">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+          <Home className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
+          <Link href="/dashboard" className="hover:text-foreground transition-colors">
+            Dashboard
+          </Link>
+          <ChevronRight className="h-4 w-4" />
+          <span className="font-medium text-foreground">Quiz</span>
+        </nav>
+
         {/* Header with timer and abort button */}
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold">Adaptive Quiz</h1>
-            <div className={`flex items-center gap-2 text-sm ${
+            <div className={`flex items-center gap-2 text-sm transition-colors ${
               timeWarning ? 'text-orange-600 font-bold' : 
               timeUp ? 'text-red-600 font-bold' : 
               'text-muted-foreground'
@@ -262,9 +261,9 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
           </AlertDialog>
         </div>
 
-        {/* Time Up Warning Banner */}
+        {/* Time Up Warning */}
         {timeUp && (
-          <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg animate-in slide-in-from-top duration-300">
             <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
               <AlertTriangle className="h-5 w-5" />
               <p className="font-semibold">Time's up! Please submit your answer or move to the next question.</p>
@@ -287,7 +286,6 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
             </span>
           </div>
           
-          {/* Dot progress bar */}
           <div className="flex gap-1.5 flex-wrap">
             {Array.from({ length: question?.totalQuestions || 0 }).map((_, index) => {
               const answer = answerHistory.find((a) => a.questionNumber === index + 1);
@@ -296,7 +294,7 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
               return (
                 <div
                   key={index}
-                  className={`h-2 flex-1 min-w-[8px] rounded-full transition-all ${
+                  className={`h-2 flex-1 min-w-[8px] rounded-full transition-all duration-300 ${
                     answer
                       ? answer.isCorrect
                         ? 'bg-green-500'
@@ -305,13 +303,6 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
                       ? 'bg-primary animate-pulse'
                       : 'bg-muted'
                   }`}
-                  title={
-                    answer
-                      ? `Question ${index + 1}: ${answer.isCorrect ? 'Correct' : 'Incorrect'}`
-                      : isCurrent
-                      ? 'Current question'
-                      : 'Not yet answered'
-                  }
                 />
               );
             })}
@@ -319,7 +310,7 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
         </div>
 
         {/* Question card */}
-        <Card>
+        <Card className="transition-all hover:shadow-md">
           <CardHeader>
             <CardTitle>Question {question ? question.answeredCount + 1 : '...'}</CardTitle>
             <CardDescription className="pt-2 text-base leading-relaxed">
@@ -338,8 +329,8 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
                   <Label
                     key={option.id}
                     htmlFor={option.id}
-                    className={`flex items-center space-x-3 p-4 border rounded-md cursor-pointer transition-colors
-                      ${feedback && option.id === feedback.correctOptionId
+                    className={`flex items-center space-x-3 p-4 border rounded-md cursor-pointer transition-all ${
+                      feedback && option.id === feedback.correctOptionId
                         ? 'border-green-500 bg-green-50 dark:bg-green-950'
                         : feedback && option.id === selectedOption && !feedback.isCorrect
                         ? 'border-red-500 bg-red-50 dark:bg-red-950'
@@ -363,7 +354,7 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
               </RadioGroup>
 
               {feedback && (
-                <div className={`mt-4 p-4 rounded-md ${
+                <div className={`mt-4 p-4 rounded-md animate-in slide-in-from-top duration-300 ${
                   feedback.isCorrect 
                     ? 'bg-green-50 border border-green-200 dark:bg-green-950 dark:border-green-800' 
                     : 'bg-red-50 border border-red-200 dark:bg-red-950 dark:border-red-800'
@@ -381,11 +372,11 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
 
               <div className="mt-6 flex gap-3">
                 {!feedback ? (
-                  <Button type="submit" disabled={!selectedOption} className="flex-1">
+                  <Button type="submit" disabled={!selectedOption} className="flex-1 transition-all">
                     Submit Answer
                   </Button>
                 ) : (
-                  <Button type="button" onClick={fetchNextQuestion} className="flex-1">
+                  <Button type="button" onClick={fetchNextQuestion} className="flex-1 transition-all">
                     Next Question →
                   </Button>
                 )}

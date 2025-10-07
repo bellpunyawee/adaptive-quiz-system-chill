@@ -80,7 +80,7 @@ model Quiz {
   completedAt DateTime?
   engineLogs      EngineLog[]
   explorationParam Float?   @default(0.5)     
-  timerMinutes     Int?     @default(30)       
+  timerMinutes      Int?      
   maxQuestions     Int?     @default(10)       
   selectedCells    String?                     
   topicSelection   String?  @default("system") 

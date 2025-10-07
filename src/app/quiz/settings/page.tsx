@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Save, Info, Settings, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import type { QuizSettings } from '@/types/quiz-settings';
 
@@ -21,13 +21,14 @@ export default function QuizSettingsPage() {
   const [cells, setCells] = useState<Cell[]>([]);
   
   // Settings state
-  const [explorationParam, setExplorationParam] = useState(50); // 0-100 for UI
-  const [timerMinutes, setTimerMinutes] = useState(30);
-  const [maxQuestions, setMaxQuestions] = useState(10);
+  const [explorationParam, setExplorationParam] = useState(50);
+  const [timerMode, setTimerMode] = useState<'unlimited' | 'limited'>('limited');
+  const [timerMinutes, setTimerMinutes] = useState(10);
+  const [maxQuestions, setMaxQuestions] = useState(15);
   const [topicSelection, setTopicSelection] = useState<'system' | 'manual'>('system');
   const [selectedCells, setSelectedCells] = useState<string[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Fetch available cells
   useEffect(() => {
     async function fetchCells() {
       try {
@@ -62,8 +63,8 @@ export default function QuizSettingsPage() {
     setSaving(true);
 
     const settings: QuizSettings = {
-      explorationParam: explorationParam / 100, // Convert to 0-1
-      timerMinutes,
+      explorationParam: explorationParam / 100,
+      timerMinutes: timerMode === 'unlimited' ? null : timerMinutes,
       maxQuestions,
       topicSelection,
       selectedCells: topicSelection === 'manual' ? selectedCells : []
@@ -93,285 +94,302 @@ export default function QuizSettingsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>Loading settings...</p>
+        <div className="text-muted-foreground">Loading settings...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header with Back Button */}
-        <div className="mb-8">
-          <Link href="/dashboard">
-            <Button variant="ghost" className="mb-4">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-          </Link>
-          <div className="flex items-center gap-3 mb-2">
-            <Settings className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50">
-              Quiz Configuration
-            </h1>
-          </div>
-          <p className="text-slate-600 dark:text-slate-400">
-            Customize your adaptive quiz experience
-          </p>
-        </div>
-
-        {/* Settings Card */}
-        <Card className="shadow-lg">
-          <CardContent className="p-8 space-y-8">
-            
-            {/* 1. Exploration vs Exploitation */}
-            <div>
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <Label className="text-base font-semibold flex items-center gap-2">
-                    Exploration vs Exploitation
-                    <div className="group relative">
-                      <Info className="w-4 h-4 text-slate-400 cursor-help" />
-                      <div className="hidden group-hover:block absolute left-0 top-6 w-72 p-3 bg-slate-900 text-white text-xs rounded-lg shadow-xl z-10">
-                        Adjust the slider to balance between exploring new questions and exploiting known areas based on your preferences.
-                      </div>
-                    </div>
-                  </Label>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                    Adjust the slider to balance between exploring new questions and exploiting known areas
-                  </p>
-                </div>
-                <div className="ml-4">
-                  <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                    {explorationParam >= 75 ? 'Highly Exploration' : 
-                     explorationParam >= 25 ? 'Balanced' : 'Highly Exploitation'}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={explorationParam}
-                  onChange={(e) => setExplorationParam(Number(e.target.value))}
-                  className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                />
-                <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
-                  <span>Highly Exploitation</span>
-                  <span>Highly Exploration</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="border-t border-slate-200 dark:border-slate-700"></div>
-
-            {/* 2. Timer Configuration */}
-            <div>
-              <Label className="text-base font-semibold flex items-center gap-2 mb-3">
-                Timer Configuration
-                <div className="group relative">
-                  <Info className="w-4 h-4 text-slate-400 cursor-help" />
-                  <div className="hidden group-hover:block absolute left-0 top-6 w-72 p-3 bg-slate-900 text-white text-xs rounded-lg shadow-xl z-10">
-                    Set the timer for each question in minutes.
-                  </div>
-                </div>
-              </Label>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
-                Set the timer for each question in minutes.
-              </p>
-              
-              <div className="flex items-center gap-3">
-                <select
-                  value={timerMinutes}
-                  onChange={(e) => setTimerMinutes(Number(e.target.value))}
-                  className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                >
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                  <option value={15}>15</option>
-                  <option value={20}>20</option>
-                  <option value={25}>25</option>
-                  <option value={30}>30</option>
-                  <option value={45}>45</option>
-                  <option value={60}>60</option>
-                </select>
-                <span className="text-slate-600 dark:text-slate-400 font-medium">
-                  minutes
-                </span>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="border-t border-slate-200 dark:border-slate-700"></div>
-
-            {/* 3. Maximum Number of Questions */}
-            <div>
-              <Label className="text-base font-semibold flex items-center gap-2 mb-3">
-                Maximum Number of Questions
-                <div className="group relative">
-                  <Info className="w-4 h-4 text-slate-400 cursor-help" />
-                  <div className="hidden group-hover:block absolute left-0 top-6 w-72 p-3 bg-slate-900 text-white text-xs rounded-lg shadow-xl z-10">
-                    Choose the total number of questions in a single quiz session.
-                  </div>
-                </div>
-              </Label>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
-                Choose the total number of questions in a single quiz session.
-              </p>
-              
-              <div className="flex items-center gap-3">
-                <select
-                  value={maxQuestions}
-                  onChange={(e) => setMaxQuestions(Number(e.target.value))}
-                  className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                >
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                  <option value={15}>15</option>
-                  <option value={20}>20</option>
-                  <option value={25}>25</option>
-                  <option value={30}>30</option>
-                  <option value={40}>40</option>
-                  <option value={50}>50</option>
-                </select>
-                <span className="text-slate-600 dark:text-slate-400 font-medium">
-                  questions
-                </span>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="border-t border-slate-200 dark:border-slate-700"></div>
-
-            {/* 4. Knowledge Units Configuration */}
-            <div>
-              <Label className="text-base font-semibold flex items-center gap-2 mb-3">
-                Knowledge Units (KU) Configuration
-                <div className="group relative">
-                  <Info className="w-4 h-4 text-slate-400 cursor-help" />
-                  <div className="hidden group-hover:block absolute left-0 top-6 w-72 p-3 bg-slate-900 text-white text-xs rounded-lg shadow-xl z-10">
-                    Choose the KU(s) that you want to practice or included in this quiz.
-                  </div>
-                </div>
-              </Label>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-                Choose the KU(s) that you want to practice or included in this quiz.
-              </p>
-
-              {/* Topic Selection Mode */}
-              <div className="space-y-4">
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input
-                      type="radio"
-                      name="topicSelection"
-                      value="system"
-                      checked={topicSelection === 'system'}
-                      onChange={(e) => setTopicSelection(e.target.value as 'system')}
-                      className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                    />
-                    <span className="text-slate-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">
-                      System Recommendation
-                    </span>
-                  </label>
-                  
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input
-                      type="radio"
-                      name="topicSelection"
-                      value="manual"
-                      checked={topicSelection === 'manual'}
-                      onChange={(e) => setTopicSelection(e.target.value as 'manual')}
-                      className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                    />
-                    <span className="text-slate-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">
-                      Manual Selection
-                    </span>
-                  </label>
-                </div>
-
-                {/* Manual Selection - Cell Checkboxes */}
-                {topicSelection === 'manual' && (
-                  <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
-                      Select Topics:
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {cells.map((cell) => (
-                        <label
-                          key={cell.id}
-                          className="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-600 cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedCells.includes(cell.id)}
-                            onChange={() => handleCellToggle(cell.id)}
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-slate-700 dark:text-slate-300">
-                            {cell.name}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                    
-                    {selectedCells.length === 0 && (
-                      <p className="mt-3 text-xs text-red-600 dark:text-red-400">
-                        ⚠ Please select at least one topic to continue
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {topicSelection === 'system' && (
-                  <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
-                      ℹ The system will automatically select topics based on your current mastery levels and learning progress.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Action Buttons */}
-        <div className="mt-6 flex gap-4">
-          <Button
-            onClick={handleSaveAndStart}
-            disabled={saving || (topicSelection === 'manual' && selectedCells.length === 0)}
-            className="flex-1 h-12"
-          >
-            <Save className="w-5 h-5 mr-2" />
-            {saving ? 'Creating Quiz...' : 'Save settings and start the quiz'}
+    <div className="container mx-auto p-8">
+      {/* Header Section */}
+      <div className="mb-8">
+        <Link href="/dashboard">
+          <Button variant="ghost" size="sm" className="mb-4">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
           </Button>
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold">Quiz Settings</h1>
+          <p className="text-muted-foreground">Configure your adaptive quiz experience</p>
+        </div>
+      </div>
+
+      {/* Settings Cards */}
+      <div className="space-y-6">
+        
+        {/* Timer and Number of Questions - Same Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Timer Configuration */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Timer</CardTitle>
+              <CardDescription>
+                Change the timer to your preference.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant={timerMode === 'unlimited' ? 'default' : 'outline'}
+                  onClick={() => setTimerMode('unlimited')}
+                >
+                  Elapsed Time
+                </Button>
+                <Button
+                  type="button"
+                  variant={timerMode === 'limited' ? 'default' : 'outline'}
+                  onClick={() => setTimerMode('limited')}
+                >
+                  Time Limit
+                </Button>
+                
+                {timerMode === 'limited' && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={timerMinutes}
+                        onChange={(e) => setTimerMinutes(Number(e.target.value))}
+                        className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      >
+                        <option value={5}>5</option>
+                        <option value={10}>10</option>
+                        <option value={15}>15</option>
+                        <option value={20}>20</option>
+                        <option value={30}>30</option>
+                        <option value={45}>45</option>
+                        <option value={60}>60</option>
+                      </select>
+                      <span className="text-sm text-muted-foreground">minutes</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Number of Questions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Number of Questions</CardTitle>
+              <CardDescription>
+                Customise the number of question items for your quiz.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3">
+                <Label htmlFor="max-questions" className="text-sm font-medium">#</Label>
+                <input
+                  id="max-questions"
+                  type="number"
+                  value={maxQuestions}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Only allow positive integers
+                    if (value === '' || /^[1-9]\d*$/.test(value)) {
+                      const num = parseInt(value) || 0;
+                      if (num >= 1 && num <= 50) {
+                        setMaxQuestions(num);
+                      }
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    // Prevent special characters, minus, plus, decimal
+                    if (['-', '+', 'e', 'E', '.'].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  min="1"
+                  max="50"
+                  className="h-9 w-20 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                />
+                <span className="text-sm text-muted-foreground">questions</span>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Settings Summary */}
-        <Card className="mt-6">
+        {/* Exploration Parameter */}
+        <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Current Settings Summary</CardTitle>
+            <CardTitle>Exploration vs Exploitation</CardTitle>
+            <CardDescription>
+              Balance between exploring new questions and exploiting known areas.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 dark:text-slate-400">
-              <div>
-                <span className="font-medium">Exploration:</span> {explorationParam}%
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">
+                  {explorationParam >= 75 ? 'Highly Exploration' : 
+                   explorationParam >= 25 ? 'Balanced' : 'Highly Exploitation'}
+                </span>
+                <span className="text-sm text-muted-foreground">{explorationParam}%</span>
               </div>
-              <div>
-                <span className="font-medium">Timer:</span> {timerMinutes} minutes
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={explorationParam}
+                onChange={(e) => setExplorationParam(Number(e.target.value))}
+                className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Exploitation</span>
+                <span>Exploration</span>
               </div>
-              <div>
-                <span className="font-medium">Max Questions:</span> {maxQuestions}
-              </div>
-              <div>
-                <span className="font-medium">Topic Mode:</span> {topicSelection === 'system' ? 'System' : `Manual (${selectedCells.length} selected)`}
-              </div>
+            </div>
+            
+            {/* Explanation */}
+            <div className="mt-4 p-3 bg-muted/50 rounded-md border">
+              <p className="text-sm text-muted-foreground">
+                <strong className="text-foreground">
+                  {explorationParam < 25 ? 'Exploitation Mode:' : 
+                   explorationParam > 75 ? 'Exploration Mode:' : 'Balanced Mode:'}
+                </strong>
+                {' '}
+                {explorationParam < 25 
+                  ? 'Focus on mastering topics you already know. Receive more questions from familiar areas to reinforce learning and build confidence.'
+                  : explorationParam > 75
+                  ? 'Discover new topics and expand your knowledge. Receive questions from less familiar areas to broaden your understanding.'
+                  : 'A mix of familiar and new topics. The system adapts to both reinforce existing knowledge and introduce new concepts.'}
+              </p>
             </div>
           </CardContent>
         </Card>
+
+        {/* Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Configuration</CardTitle>
+            <CardDescription>
+              Choose the knowledge unit(s) that you want to practice or included in the quiz.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant={topicSelection === 'system' ? 'default' : 'outline'}
+                onClick={() => {
+                  setTopicSelection('system');
+                  setSelectedCells([]);
+                  setIsDropdownOpen(false);
+                }}
+              >
+                System Automatic
+              </Button>
+              <Button
+                type="button"
+                variant={topicSelection === 'manual' ? 'default' : 'outline'}
+                onClick={() => {
+                  setTopicSelection('manual');
+                }}
+              >
+                Manual Selection
+              </Button>
+            </div>
+
+            {topicSelection === 'manual' && (
+              <div className="space-y-3 pt-2">
+                {/* Selected cells display */}
+                {selectedCells.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Selected Topics:</Label>
+                    {selectedCells.map(cellId => {
+                      const cell = cells.find(c => c.id === cellId);
+                      return cell ? (
+                        <div
+                          key={cell.id}
+                          className="flex items-center justify-between px-4 py-2.5 bg-accent border rounded-md"
+                        >
+                          <div className="flex items-center gap-3">
+                            <svg className="w-4 h-4 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                              <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                            </svg>
+                            <span className="text-sm font-medium">{cell.name}</span>
+                          </div>
+                          <button
+                            onClick={() => handleCellToggle(cell.id)}
+                            className="p-1 hover:bg-background rounded transition-colors"
+                            aria-label={`Remove ${cell.name}`}
+                          >
+                            <svg className="w-4 h-4 text-muted-foreground hover:text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                )}
+
+                {/* Dropdown for adding topics */}
+                <div className="relative">
+                  <Label className="text-sm font-medium mb-2 block">Add Topics:</Label>
+                  <button
+                    type="button"
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 border rounded-md hover:bg-accent transition-colors text-sm"
+                  >
+                    <span className="text-muted-foreground">Select a topic...</span>
+                    <svg 
+                      className={`w-4 h-4 text-muted-foreground transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {isDropdownOpen && (
+                    <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                      {cells.filter(cell => !selectedCells.includes(cell.id)).length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-muted-foreground">
+                          All topics selected
+                        </div>
+                      ) : (
+                        cells
+                          .filter(cell => !selectedCells.includes(cell.id))
+                          .map(cell => (
+                            <button
+                              key={cell.id}
+                              type="button"
+                              onClick={() => {
+                                handleCellToggle(cell.id);
+                                setIsDropdownOpen(false);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-accent transition-colors text-left"
+                            >
+                              <svg className="w-4 h-4 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                                <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                              </svg>
+                              <span className="text-sm">{cell.name}</span>
+                            </button>
+                          ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Action Button */}
+      <div className="mt-6 flex justify-end">
+        <Button
+          onClick={handleSaveAndStart}
+          disabled={saving}
+          size="lg"
+        >
+          {saving ? 'Creating Quiz...' : 'Save & Start Quiz'}
+        </Button>
       </div>
     </div>
   );
