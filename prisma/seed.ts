@@ -1,3 +1,6 @@
+import { config } from 'dotenv';
+config({ override: true });
+
 import { PrismaClient } from '@prisma/client';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';

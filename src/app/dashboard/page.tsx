@@ -4,10 +4,12 @@ import prisma from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { handleSignOut, startNewQuiz } from "@/app/actions";
+import { handleSignOut } from "@/app/actions";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { PerformanceChart, ChartData } from "@/app/dashboard/PerformanceChart";
-import { Settings, Zap, Home, ChevronRight } from "lucide-react";
+import { QuizStartDialog } from "@/components/QuizStartDialog";
+import { HowItWorksDialog } from "@/components/HowItWorksDialog";
+import { Settings, Home, ChevronRight } from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -75,8 +77,9 @@ export default async function DashboardPage() {
           <span className="font-medium text-foreground">Dashboard</span>
         </nav>
 
-        {/* Sign Out Button - Top Right */}
-        <div className="flex justify-end mb-4">
+        {/* Top Bar - Sign Out & Help */}
+        <div className="flex justify-between items-center mb-4">
+          <HowItWorksDialog />
           <form action={handleSignOut}>
             <Button variant="ghost" size="sm">Sign Out</Button>
           </form>
@@ -86,17 +89,14 @@ export default async function DashboardPage() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Welcome back, {session.user.name || 'User'}</h1>
-            <p className="text-muted-foreground mt-1">Here is an overview of your progress and performance.</p>
+            <p className="text-muted-foreground mt-1">
+              Track your learning progress with personalized quizzes that adapt to your skill level.
+            </p>
           </div>
           <div className="flex items-center gap-3">
             {/* Quick Actions */}
-            <form action={startNewQuiz}>
-              <Button type="submit" size="lg">
-                <Zap className="w-4 h-4 mr-2" />
-                Start Quiz
-              </Button>
-            </form>
-            
+            <QuizStartDialog />
+
             <Link href="/quiz/settings">
               <Button variant="outline" size="lg">
                 <Settings className="w-4 h-4 mr-2" />
@@ -117,7 +117,20 @@ export default async function DashboardPage() {
               {chartData.length > 0 ? (
                 <PerformanceChart data={chartData} />
               ) : (
-                <p className="text-center text-muted-foreground py-8">No performance data yet. Start a quiz to see your progress!</p>
+                <div className="text-center py-12 space-y-4">
+                  <p className="text-muted-foreground text-lg">No quiz data yet</p>
+                  <div className="text-sm text-muted-foreground space-y-2 max-w-md mx-auto">
+                    <p className="font-medium">After completing quizzes, you'll see:</p>
+                    <ul className="text-left space-y-1 pl-6">
+                      <li>• Which topics you're strongest in</li>
+                      <li>• Where you need more practice</li>
+                      <li>• Your progress over time</li>
+                    </ul>
+                  </div>
+                  <div className="pt-4">
+                    <QuizStartDialog />
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>

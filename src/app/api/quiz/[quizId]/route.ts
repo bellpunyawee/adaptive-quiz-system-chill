@@ -46,9 +46,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: 'completed' });
     }
 
-    // Get total questions count and answered count
-    const [totalQuestions, answeredCount] = await Promise.all([
-      prisma.question.count(),
+    // Get quiz settings and answered count
+    const [quizSettings, answeredCount] = await Promise.all([
+      prisma.quiz.findUnique({
+        where: { id: quizId },
+        select: { maxQuestions: true }
+      }),
       prisma.userAnswer.count({
         where: { quizId: quizId, userId: session.user.id }
       })
@@ -60,10 +63,10 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       status: 'in-progress',
-      question: { 
-        ...publicQuestionData, 
+      question: {
+        ...publicQuestionData,
         options: publicOptions,
-        totalQuestions,
+        totalQuestions: quizSettings?.maxQuestions || 10, // Use maxQuestions from quiz settings
         answeredCount
       },
     });

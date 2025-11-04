@@ -4,9 +4,29 @@ import { signIn, signOut, auth } from '@/auth';
 import prisma from '../lib/db';
 import { hash } from 'bcrypt';
 import { redirect } from 'next/navigation';
+import { AuthError } from 'next-auth';
 
 export async function handleSignIn(formData: FormData) {
-  await signIn('credentials', formData);
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
+
+  try {
+    await signIn('credentials', {
+      email,
+      password,
+      redirectTo: '/dashboard',
+    });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case 'CredentialsSignin':
+          throw new Error('Invalid credentials');
+        default:
+          throw new Error('Something went wrong');
+      }
+    }
+    throw error;
+  }
 }
 
 export async function handleSignOut() {
@@ -53,7 +73,23 @@ export async function handleSignUp(formData: FormData) {
     },
   });
 
-  await signIn('credentials', formData);
+  try {
+    await signIn('credentials', {
+      email,
+      password,
+      redirectTo: '/dashboard',
+    });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case 'CredentialsSignin':
+          throw new Error('Invalid credentials');
+        default:
+          throw new Error('Something went wrong');
+      }
+    }
+    throw error;
+  }
 }
 
 /**
@@ -98,16 +134,17 @@ export async function startNewQuiz() {
     });
     console.log(`[ACTION] Reset ${resetResult.count} mastery records`);
 
-    // Create new quiz
+    // Create new quiz with default settings
+    // Defaults: No timer, 5 questions, balanced exploration (0.5)
     console.log('[ACTION] Creating new quiz...');
     const newQuiz = await prisma.quiz.create({
       data: {
         userId,
         status: 'in-progress',
         startedAt: new Date(),
-        explorationParam: 0.5,
-        timerMinutes: 30,
-        maxQuestions: 10,
+        explorationParam: 0.5,  // Balanced exploration
+        timerMinutes: null,      // No timer (unlimited time)
+        maxQuestions: 5,         // 5 questions
         topicSelection: 'system',
         selectedCells: null,
       },
