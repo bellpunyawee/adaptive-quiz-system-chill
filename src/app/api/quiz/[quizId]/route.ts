@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { selectNextQuestionForUser, processUserAnswer } from '@/lib/adaptive-engine/engine-enhanced';
+import { selectBaselineQuestion, getBaselineProgress } from '@/lib/adaptive-engine/baseline-engine';
 import prisma from '@/lib/db';
 
 export async function GET(req: Request) {
@@ -19,11 +20,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Quiz ID is missing from the URL.' }, { status: 400 });
     }
 
-    const quiz = await prisma.quiz.findUnique({ 
+    const quiz = await prisma.quiz.findUnique({
       where: { id: quizId },
-      select: { id: true, status: true, userId: true }
+      select: { id: true, status: true, userId: true, quizType: true }
     });
-    
+
     if (!quiz) {
       return NextResponse.json({ error: 'Quiz not found.' }, { status: 404 });
     }
@@ -32,10 +33,19 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Select next question
-    const nextQuestion = await selectNextQuestionForUser(session.user.id, quizId);
+    // Check if this is a baseline quiz
+    const isBaseline = quiz.quizType === 'baseline';
+
+    // Select next question (different logic for baseline vs regular)
+    let nextQuestion;
+    if (isBaseline) {
+      nextQuestion = await selectBaselineQuestion(session.user.id, quizId);
+    } else {
+      nextQuestion = await selectNextQuestionForUser(session.user.id, quizId);
+    }
 
     if (!nextQuestion) {
+      // Quiz complete - update status
       await prisma.quiz.update({
         where: { id: quizId },
         data: {
@@ -43,7 +53,21 @@ export async function GET(req: Request) {
           completedAt: new Date(),
         },
       });
-      return NextResponse.json({ status: 'completed' });
+
+      // If baseline quiz, mark user as baseline completed
+      if (isBaseline) {
+        await prisma.user.update({
+          where: { id: session.user.id },
+          data: {
+            baselineCompleted: true,
+            baselineCompletedAt: new Date(),
+            baselineQuizId: quizId,
+          },
+        });
+        console.log(`[Baseline] User ${session.user.id} completed baseline assessment`);
+      }
+
+      return NextResponse.json({ status: 'completed', quizType: quiz.quizType });
     }
 
     // Get quiz settings and answered count
@@ -61,14 +85,22 @@ export async function GET(req: Request) {
     const { discrimination_a, difficulty_b, answerOptions, ...publicQuestionData } = nextQuestion;
     const publicOptions = answerOptions.map(({ id, text }) => ({ id, text }));
 
+    // Get baseline progress if this is a baseline quiz
+    let baselineProgress;
+    if (isBaseline) {
+      baselineProgress = await getBaselineProgress(session.user.id, quizId);
+    }
+
     return NextResponse.json({
       status: 'in-progress',
+      quizType: quiz.quizType,
       question: {
         ...publicQuestionData,
         options: publicOptions,
-        totalQuestions: quizSettings?.maxQuestions || 10, // Use maxQuestions from quiz settings
+        totalQuestions: quizSettings?.maxQuestions || 10,
         answeredCount
       },
+      ...(baselineProgress && { baselineProgress }), // Include if baseline quiz
     });
   } catch (error) {
     console.error("[API GET Error]:", error);

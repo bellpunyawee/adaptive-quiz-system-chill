@@ -42,15 +42,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: user.name,
             email: user.email,
             image: user.image,
+            role: user.role,
         };
       },
     }),
   ],
   callbacks: {
-    // This is needed to make sure the user ID is included in the session
+    // This is needed to make sure the user ID and role are included in the session
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = user.role;
+      }
+      return token;
+    },
     session({ session, token }) {
       if (token.sub && session.user) {
         session.user.id = token.sub;
+        session.user.role = token.role as string;
       }
       return session;
     },

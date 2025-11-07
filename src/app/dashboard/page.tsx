@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { PerformanceChart, ChartData } from "@/app/dashboard/PerformanceChart";
 import { QuizStartDialog } from "@/components/QuizStartDialog";
 import { HowItWorksDialog } from "@/components/HowItWorksDialog";
+import { BaselineAssessmentCTA, BaselineCompletedCard } from "@/components/BaselineAssessmentCTA";
 import { Settings, Home, ChevronRight } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -16,6 +17,15 @@ export default async function DashboardPage() {
   if (!session || !session.user) {
     redirect("/");
   }
+
+  // Check baseline status
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      baselineCompleted: true,
+      baselineQuizId: true,
+    },
+  });
 
   const completedQuizzes = await prisma.quiz.findMany({
     where: { 
@@ -105,6 +115,17 @@ export default async function DashboardPage() {
             </Link>
           </div>
         </div>
+
+        {/* Baseline Assessment CTA */}
+        {!user?.baselineCompleted ? (
+          <div className="mb-8">
+            <BaselineAssessmentCTA />
+          </div>
+        ) : user?.baselineQuizId ? (
+          <div className="mb-8">
+            <BaselineCompletedCard baselineQuizId={user.baselineQuizId} />
+          </div>
+        ) : null}
 
         {/* Performance and Progress Cards */}
         <div className="grid gap-6 md:grid-cols-3">
