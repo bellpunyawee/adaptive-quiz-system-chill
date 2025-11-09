@@ -9,20 +9,19 @@ import {
   healthReportJob,
   cleanupOldDataJob
 } from '@/lib/adaptive-engine/maintenance-jobs';
+import { requireAdmin } from '@/lib/admin-auth';
 
 /**
  * POST /api/admin/maintenance
  * Run maintenance jobs
- * 
+ *
  * Body: { job: 'all' | 'recalibrate' | 'retire' | 'exposure' | 'health' | 'cleanup' }
  */
 export async function POST(request: NextRequest) {
   try {
-    // TODO: Add authentication middleware to verify admin access
-    // const session = await getServerSession();
-    // if (!session || session.user.role !== 'admin') {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    // Check admin authentication
+    const authError = await requireAdmin();
+    if (authError) return authError;
 
     const body = await request.json();
     const { job } = body;
@@ -101,10 +100,12 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   try {
-    // TODO: Add authentication
-    
+    // Check admin authentication
+    const authError = await requireAdmin();
+    if (authError) return authError;
+
     const healthReport = await healthReportJob();
-    
+
     return NextResponse.json({
       success: true,
       ...healthReport
@@ -112,8 +113,8 @@ export async function GET() {
   } catch (error) {
     console.error('[API] Health report failed:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }

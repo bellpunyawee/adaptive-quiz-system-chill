@@ -213,7 +213,7 @@ export default function QuizSettingsPage() {
         {/* Exploration Parameter */}
         <Card>
           <CardHeader>
-            <CardTitle>Exploration vs Exploitation</CardTitle>
+            <CardTitle>Question Selection</CardTitle>
             <CardDescription>
               Balance between exploring new questions and exploiting known areas.
             </CardDescription>
@@ -245,14 +245,14 @@ export default function QuizSettingsPage() {
             <div className="mt-4 p-3 bg-muted/50 rounded-md border">
               <p className="text-sm text-muted-foreground">
                 <strong className="text-foreground">
-                  {explorationParam < 25 ? 'Exploitation Mode:' : 
-                   explorationParam > 75 ? 'Exploration Mode:' : 'Balanced Mode:'}
+                  {explorationParam < 25 ? 'Focus on Weaknesses:' : 
+                   explorationParam > 75 ? 'Try Everything:' : 'Balanced:'}
                 </strong>
                 {' '}
                 {explorationParam < 25 
                   ? 'Focus on mastering topics you already know. Receive more questions from familiar areas to reinforce learning and build confidence.'
                   : explorationParam > 75
-                  ? 'Discover new topics and expand your knowledge. Receive questions from less familiar areas to broaden your understanding.'
+                  ? 'Explore new topics and expand your knowledge. Receive questions from less familiar areas to broaden your understanding.'
                   : 'A mix of familiar and new topics. The system adapts to both reinforce existing knowledge and introduce new concepts.'}
               </p>
             </div>

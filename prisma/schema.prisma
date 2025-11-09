@@ -16,6 +16,15 @@ model User {
   image           String?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
+
+  // Role-based access control
+  role            String             @default("user")  // "user" | "admin"
+
+  // Baseline assessment tracking
+  baselineCompleted    Boolean   @default(false)
+  baselineCompletedAt  DateTime?
+  baselineQuizId       String?
+
   quizzes         Quiz[]
   userAnswers     UserAnswer[]
   userCellMastery UserCellMastery[]
@@ -79,11 +88,16 @@ model Quiz {
   startedAt   DateTime     @default(now())
   completedAt DateTime?
   engineLogs      EngineLog[]
-  explorationParam Float?   @default(0.5)     
-  timerMinutes      Int?      
-  maxQuestions     Int?     @default(10)       
-  selectedCells    String?                     
-  topicSelection   String?  @default("system") 
+
+  // Quiz settings
+  explorationParam Float?   @default(0.5)
+  timerMinutes      Int?
+  maxQuestions     Int?     @default(10)
+  selectedCells    String?
+  topicSelection   String?  @default("system")
+
+  // Quiz type: "baseline" or "regular"
+  quizType         String   @default("regular")
 }
 
 model UserCellMastery {
