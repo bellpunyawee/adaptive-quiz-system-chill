@@ -94,12 +94,14 @@ export async function selectNextQuestionForUser(
         maxQuestions: true,
         topicSelection: true,
         selectedCells: true,
+        quizType: true,
       }
     });
 
     const explorationParameter = quizSettings?.explorationParam ?? 1.0;
     const maxQuestionsLimit = quizSettings?.maxQuestions ?? 50;
     const topicSelectionMode = quizSettings?.topicSelection ?? 'system';
+    const quizType = quizSettings?.quizType ?? 'regular';
     const selectedCellIds = topicSelectionMode === 'manual' && quizSettings?.selectedCells
       ? JSON.parse(quizSettings.selectedCells) as string[]
       : null;
@@ -108,6 +110,7 @@ export async function selectNextQuestionForUser(
       explorationParameter,
       maxQuestionsLimit,
       topicSelectionMode,
+      quizType,
       selectedCellsCount: selectedCellIds?.length ?? 0
     });
 
@@ -204,7 +207,8 @@ export async function selectNextQuestionForUser(
       cellId: targetCell.cellId,
       userId,
       quizId,
-      excludeQuestionIds: []
+      excludeQuestionIds: [],
+      quizType, // Pass quiz type for practice mode filtering
     });
 
     if (availableQuestions.length === 0) {

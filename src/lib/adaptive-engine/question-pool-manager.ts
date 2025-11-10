@@ -41,6 +41,7 @@ export interface QuestionSelectionCriteria {
   minDifficulty?: number;
   maxDifficulty?: number;
   preferredDifficulty?: number;
+  quizType?: string;  // Added: for practice mode filtering
 }
 
 /**
@@ -74,38 +75,71 @@ export class QuestionPoolManager {
   async getAvailableQuestions(
     criteria: QuestionSelectionCriteria
   ): Promise<Prisma.QuestionGetPayload<{ include: { answerOptions: true } }>[]> {
-    const { cellId, userId, quizId, excludeQuestionIds = [] } = criteria;
+    const { cellId, userId, quizId, excludeQuestionIds = [], quizType = 'regular' } = criteria;
 
     console.log(`[POOL] Getting questions for cell: ${cellId}`);
-    console.log(`[POOL] User ID: ${userId}, Quiz ID: ${quizId || 'not specified'}`);
+    console.log(`[POOL] User ID: ${userId}, Quiz ID: ${quizId || 'not specified'}, Quiz Type: ${quizType}`);
 
     // Get questions already answered by this user in THIS quiz only
     let answeredIds: string[] = [];
+    let incorrectQuestionIds: string[] = [];
     
+    // Practice mode: get incorrect questions from ALL quizzes for review mode
+    if (quizType === 'practice-review' || quizType === 'review-mistakes') {
+      const incorrectAnswers = await prisma.userAnswer.findMany({
+        where: {
+          userId,
+          isCorrect: false,
+          question: { cellId } // Only from this cell
+        },
+        select: { questionId: true },
+        distinct: ['questionId']
+      });
+      incorrectQuestionIds = incorrectAnswers.map(a => a.questionId);
+      console.log(`[POOL] Practice mode (review): Found ${incorrectQuestionIds.length} incorrect questions to review`);
+    }
+
     if (quizId) {
       // Only exclude questions from THIS quiz
       const userAnsweredQuestions = await prisma.userAnswer.findMany({
-        where: { 
+        where: {
           userId,
           quizId  // Filter by current quiz
         },
-        select: { questionId: true },
+        select: { questionId: true, isCorrect: true },
         distinct: ['questionId']
       });
       answeredIds = userAnsweredQuestions.map(a => a.questionId);
       console.log(`[POOL] User has answered ${answeredIds.length} questions in this quiz (Quiz ID: ${quizId})`);
     } else {
-      // Fallback: exclude all questions user has ever answered
+      // For practice-new mode: exclude ALL previously answered questions
       const userAnsweredQuestions = await prisma.userAnswer.findMany({
-        where: { userId },
+        where: {
+          userId,
+          question: quizType === 'practice-new' ? { cellId } : undefined // Filter by cell for practice-new
+        },
         select: { questionId: true },
         distinct: ['questionId']
       });
       answeredIds = userAnsweredQuestions.map(a => a.questionId);
-      console.log(`[POOL] User has answered ${answeredIds.length} questions total (across all quizzes)`);
+      console.log(`[POOL] User has answered ${answeredIds.length} questions ${quizType === 'practice-new' ? 'in this cell' : 'total'} (across all quizzes)`);
     }
 
-    const allExcludedIds = [...excludeQuestionIds, ...answeredIds];
+    // Determine which questions to include based on quiz type
+    let allExcludedIds: string[];
+
+    if (quizType === 'practice-review' || quizType === 'review-mistakes') {
+      // Review mode: ONLY include incorrect questions, exclude answered in this quiz
+      allExcludedIds = answeredIds; // Only exclude from current quiz
+      console.log(`[POOL] Review mode: will filter to ${incorrectQuestionIds.length} incorrect questions`);
+    } else if (quizType === 'practice-new') {
+      // New questions only: exclude ALL previously answered
+      allExcludedIds = [...excludeQuestionIds, ...answeredIds];
+      console.log(`[POOL] New questions mode: excluding all ${allExcludedIds.length} previously answered`);
+    } else {
+      // Standard mode: exclude from current quiz only
+      allExcludedIds = [...excludeQuestionIds, ...answeredIds];
+    }
 
     if (allExcludedIds.length > 0) {
       console.log(`[POOL] Total excluded question IDs: ${allExcludedIds.length}`);
@@ -134,18 +168,29 @@ export class QuestionPoolManager {
     if (hasEnhancedFields) {
       // Use enhanced filtering if fields exist
       console.log(`[POOL] Using enhanced filtering with exposure control`);
-      
+
       const whereClause: any = {
         cellId,
         isActive: true,
         exposureCount: { lt: this.config.maxExposure }
       };
-      
-      // Only add exclusion if there are IDs to exclude
-      if (allExcludedIds.length > 0) {
-        whereClause.id = { notIn: allExcludedIds };
+
+      // For review mode: ONLY include incorrect questions
+      if (quizType === 'practice-review' || quizType === 'review-mistakes') {
+        if (incorrectQuestionIds.length > 0) {
+          whereClause.id = { in: incorrectQuestionIds, notIn: allExcludedIds };
+        } else {
+          // No incorrect questions to review
+          console.log(`[POOL] No incorrect questions found for review mode`);
+          return [];
+        }
+      } else {
+        // Only add exclusion if there are IDs to exclude
+        if (allExcludedIds.length > 0) {
+          whereClause.id = { notIn: allExcludedIds };
+        }
       }
-      
+
       questions = await prisma.question.findMany({
         where: whereClause,
         include: {
@@ -156,16 +201,26 @@ export class QuestionPoolManager {
           { lastUsed: 'asc' }
         ]
       });
-      
+
       console.log(`[POOL] Query where clause:`, JSON.stringify(whereClause, null, 2));
     } else {
       // Fallback to basic filtering (backwards compatible)
       console.log('[POOL] Using backwards-compatible mode (basic filtering)');
-      
+
       const whereClause: any = { cellId };
-      
-      if (allExcludedIds.length > 0) {
-        whereClause.id = { notIn: allExcludedIds };
+
+      // For review mode: ONLY include incorrect questions
+      if (quizType === 'practice-review' || quizType === 'review-mistakes') {
+        if (incorrectQuestionIds.length > 0) {
+          whereClause.id = { in: incorrectQuestionIds, notIn: allExcludedIds };
+        } else {
+          console.log(`[POOL] No incorrect questions found for review mode`);
+          return [];
+        }
+      } else {
+        if (allExcludedIds.length > 0) {
+          whereClause.id = { notIn: allExcludedIds };
+        }
       }
       
       questions = await prisma.question.findMany({
