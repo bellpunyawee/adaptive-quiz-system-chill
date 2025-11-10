@@ -5,6 +5,22 @@ import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, Target, Award } from 'lucide-react';
 
+// Custom label component for Y-axis that handles long text
+const CustomYAxisTick = (props: any) => {
+  const { x, y, payload } = props;
+  const maxLength = 20;
+  const text = payload.value;
+  const displayText = text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={0} y={0} dy={4} textAnchor="end" fill="#666" fontSize={12}>
+        {displayText}
+      </text>
+    </g>
+  );
+};
+
 interface TopicPerformance {
   topic: string;
   correct: number;
@@ -40,11 +56,11 @@ export function PerformanceSummary({
     total: topic.total,
   }));
 
-  // Color for bars based on accuracy
+  // Pastel colors for bars based on accuracy (easier on the eyes)
   const getBarColor = (accuracy: number) => {
-    if (accuracy >= 80) return '#22c55e'; // green-500
-    if (accuracy >= 60) return '#eab308'; // yellow-500
-    return '#ef4444'; // red-500
+    if (accuracy >= 80) return '#86efac'; // green-300 (pastel green)
+    if (accuracy >= 60) return '#fde047'; // yellow-300 (pastel yellow)
+    return '#fca5a5'; // red-300 (pastel red)
   };
 
   // Comparison with baseline
@@ -132,20 +148,23 @@ export function PerformanceSummary({
             <CardTitle>Performance by Topic</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
+            <ResponsiveContainer width="100%" height={Math.max(250, chartData.length * 50)}>
+              <BarChart
+                data={chartData}
+                layout="vertical"
+                margin={{ top: 10, right: 30, left: 120, bottom: 10 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
-                  dataKey="name"
-                  angle={-45}
-                  textAnchor="end"
-                  height={100}
-                  interval={0}
-                  tick={{ fontSize: 12 }}
+                  type="number"
+                  domain={[0, 100]}
+                  label={{ value: 'Accuracy (%)', position: 'insideBottom', offset: -5 }}
                 />
                 <YAxis
-                  label={{ value: 'Accuracy (%)', angle: -90, position: 'insideLeft' }}
-                  domain={[0, 100]}
+                  type="category"
+                  dataKey="name"
+                  width={110}
+                  tick={<CustomYAxisTick />}
                 />
                 <Tooltip
                   content={({ active, payload }) => {
@@ -162,39 +181,13 @@ export function PerformanceSummary({
                     return null;
                   }}
                 />
-                <Bar dataKey="accuracy" radius={[8, 8, 0, 0]}>
+                <Bar dataKey="accuracy" radius={[0, 8, 8, 0]}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={getBarColor(entry.accuracy)} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-
-            {/* Topic Details */}
-            <div className="mt-6 space-y-2">
-              <p className="text-sm font-medium text-muted-foreground mb-3">Detailed Breakdown</p>
-              {topicPerformance.map((topic) => (
-                <div key={topic.topic} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <Badge variant="outline">{topic.topic}</Badge>
-                    <span className="text-sm text-muted-foreground">
-                      {topic.correct} / {topic.total} correct
-                    </span>
-                  </div>
-                  <Badge
-                    className={`${
-                      topic.accuracy >= 80
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                        : topic.accuracy >= 60
-                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
-                        : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                    }`}
-                  >
-                    {topic.accuracy}%
-                  </Badge>
-                </div>
-              ))}
-            </div>
           </CardContent>
         </Card>
       )}

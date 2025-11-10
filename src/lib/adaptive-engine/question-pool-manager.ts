@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/db";
 import { Prisma } from "@prisma/client";
+import { getSpacedRepetitionQuestions } from "@/lib/spaced-repetition";
 
 /**
  * Question pool configuration
@@ -85,18 +86,18 @@ export class QuestionPoolManager {
     let incorrectQuestionIds: string[] = [];
     
     // Practice mode: get incorrect questions from ALL quizzes for review mode
+    // NOW USES SPACED REPETITION
     if (quizType === 'practice-review' || quizType === 'review-mistakes') {
-      const incorrectAnswers = await prisma.userAnswer.findMany({
-        where: {
-          userId,
-          isCorrect: false,
-          question: { cellId } // Only from this cell
-        },
-        select: { questionId: true },
-        distinct: ['questionId']
-      });
-      incorrectQuestionIds = incorrectAnswers.map(a => a.questionId);
-      console.log(`[POOL] Practice mode (review): Found ${incorrectQuestionIds.length} incorrect questions to review`);
+      console.log(`[POOL] Practice mode (review): Using spaced repetition system`);
+
+      // Get questions using spaced repetition (prioritizes due reviews)
+      const spacedQuestions = await getSpacedRepetitionQuestions(userId, cellId, 20);
+
+      // Combine due reviews and new incorrect questions
+      const allQuestions = [...spacedQuestions.dueReviews, ...spacedQuestions.newQuestions];
+      incorrectQuestionIds = allQuestions.map(q => q.id);
+
+      console.log(`[POOL] Spaced repetition: ${spacedQuestions.dueReviews.length} due reviews + ${spacedQuestions.newQuestions.length} new incorrect = ${incorrectQuestionIds.length} total`);
     }
 
     if (quizId) {

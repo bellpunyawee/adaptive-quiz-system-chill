@@ -30,6 +30,7 @@ model User {
   userCellMastery UserCellMastery[]
   engineLogs      EngineLog[]
   abilityHistory  AbilityHistory[]
+  questionReviews QuestionReview[]
 }
 
 model Cell {
@@ -64,7 +65,8 @@ model Question {
   
   answerOptions    AnswerOption[]
   userAnswers      UserAnswer[]
-  
+  reviews          QuestionReview[]
+
   @@index([cellId, isActive])
   @@index([exposureCount])
   @@index([lastUsed])
@@ -98,6 +100,12 @@ model Quiz {
 
   // Quiz type: "baseline" or "regular"
   quizType         String   @default("regular")
+
+  // A/B Testing
+  abTestVariant    String?  // 'A' | 'B' | null (not in test)
+  abTestName       String?  // Name of the test this quiz is part of
+
+  @@index([abTestVariant, abTestName])
 }
 
 model UserCellMastery {
@@ -171,7 +179,7 @@ model AbilityHistory {
   userId        String
   cellId        String
   ability_theta Float
-  confidence    Float?   
+  confidence    Float?
   quizId        String?
   updatedAt     DateTime @default(now())
 
@@ -180,4 +188,24 @@ model AbilityHistory {
 
   @@index([userId, cellId])
   @@index([updatedAt])
+}
+
+model QuestionReview {
+  id              String   @id @default(cuid())
+  userId          String
+  questionId      String
+  lastReviewed    DateTime
+  reviewCount     Int      @default(0)
+  easinessFactor  Float    @default(2.5)
+  interval        Int      @default(1)      // days until next review
+  nextReviewDate  DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+  @@index([userId, nextReviewDate])
+  @@index([nextReviewDate])
 }
