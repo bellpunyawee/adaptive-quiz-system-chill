@@ -167,14 +167,14 @@ export default function BaselineResultsPage({ params }: { params: Promise<{ quiz
           </p>
         </div>
 
-        {/* Key Takeaways */}
+        {/* Reflections */}
         <Card className="mb-8 border-2 border-primary/20 bg-primary/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Lightbulb className="h-5 w-5" />
-              Key Takeaways
+              Personalized Feedback (Reflections) 
             </CardTitle>
-            <CardDescription>Quick insights from your assessment</CardDescription>
+            <CardDescription> (IN-PROGRESS) - Quick insights from your assessment</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
