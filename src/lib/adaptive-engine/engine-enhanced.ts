@@ -1,13 +1,15 @@
 import prisma from "@/lib/db";
 import { calculateUCB } from "./ucb";
-import { 
-  estimateAbility, 
+import {
+  estimateAbility,
   calculateKullbackLeiblerInformation,
   IRTResponse
 } from "./irt-estimator-enhanced";
 import { questionPoolManager } from "./question-pool-manager";
 import { shouldStopQuiz } from "./stopping-criteria";
 import { engineMonitor, PerformanceTimer } from "./monitoring";
+import { getInitialThetaEstimate, selectWarmupQuestion } from "./warm-up-strategy";
+import { selectWithExposureControl, updateExposureCount, DEFAULT_EXPOSURE_CONFIG } from "./sympson-hetter";
 import { Prisma } from "@prisma/client";
 
 const questionWithAnswerOptions = Prisma.validator<Prisma.QuestionDefaultArgs>()({
@@ -201,6 +203,50 @@ export async function selectNextQuestionForUser(
     }
 
     // ==========================================
+    // STEP 2.5: Warm-up Strategy (First Question for Cell)
+    // ==========================================
+    // Check if this is the first question for this cell in this quiz
+    const cellAnswersCount = await prisma.userAnswer.count({
+      where: {
+        userId,
+        quizId,
+        question: { cellId: targetCell.cellId }
+      }
+    });
+
+    if (cellAnswersCount === 0 && totalSelections < 3) {
+      // First time seeing this cell OR very early in quiz - use warm-up strategy
+      console.log(`[ENGINE] First question for cell ${targetCell.cellName}, using warm-up strategy`);
+
+      // Get better initial theta estimate if possible
+      const initialEstimate = await getInitialThetaEstimate(userId, targetCell.cellId);
+      console.log(`[ENGINE] Initial theta estimate: ${initialEstimate.theta.toFixed(2)} (source: ${initialEstimate.source})`);
+
+      // Select warm-up question
+      const warmupQuestion = await selectWarmupQuestion(
+        userId,
+        quizId,
+        targetCell.cellId,
+        initialEstimate.theta
+      );
+
+      if (warmupQuestion) {
+        console.log(`[ENGINE] Selected warm-up question: ${warmupQuestion.id}`);
+        console.log(`[ENGINE] - Difficulty: ${warmupQuestion.difficulty_b.toFixed(2)}`);
+        console.log(`[ENGINE] - Discrimination: ${warmupQuestion.discrimination_a.toFixed(2)}`);
+
+        // Track usage
+        await questionPoolManager.trackQuestionUsage(
+          warmupQuestion.id,
+          userId,
+          initialEstimate.theta
+        );
+
+        return warmupQuestion;
+      }
+    }
+
+    // ==========================================
     // STEP 3: Get Available Questions from Pool
     // ==========================================
     const availableQuestions = await questionPoolManager.getAvailableQuestions({
@@ -274,26 +320,58 @@ export async function selectNextQuestionForUser(
       };
     });
 
-    // Sort by UCB score and select the best
+    // Sort by UCB score (best first)
     questionScores.sort((a, b) => b.ucbScore - a.ucbScore);
-    const selectedQuestion = questionScores[0].question;
+
+    // ==========================================
+    // STEP 4.5: Apply Sympson-Hetter Exposure Control
+    // ==========================================
+    // Prepare ranked candidates for exposure control
+    const rankedCandidates = questionScores.map(qs => ({
+      id: qs.question.id,
+      score: qs.ucbScore
+    }));
+
+    console.log(`[ENGINE] Applying Sympson-Hetter exposure control to top ${Math.min(10, rankedCandidates.length)} candidates`);
+
+    // Apply exposure control (tries candidates in order until one is admitted)
+    const selectedQuestionId = await selectWithExposureControl(
+      rankedCandidates.slice(0, 10), // Consider top 10 candidates
+      DEFAULT_EXPOSURE_CONFIG
+    );
+
+    if (!selectedQuestionId) {
+      console.log(`[ENGINE] No question passed exposure control, falling back to top candidate`);
+      throw new Error('No questions available after exposure control');
+    }
+
+    // Find the selected question data
+    const selectedScore = questionScores.find(qs => qs.question.id === selectedQuestionId);
+    if (!selectedScore) {
+      throw new Error('Selected question not found in scored questions');
+    }
+
+    const selectedQuestion = selectedScore.question;
 
     console.log(`[ENGINE] Selected question: ${selectedQuestion.id}`);
-    console.log(`[ENGINE] - KLI: ${questionScores[0].kli.toFixed(3)}`);
-    console.log(`[ENGINE] - UCB Score: ${questionScores[0].ucbScore.toFixed(3)}`);
+    console.log(`[ENGINE] - KLI: ${selectedScore.kli.toFixed(3)}`);
+    console.log(`[ENGINE] - UCB Score: ${selectedScore.ucbScore.toFixed(3)}`);
     console.log(`[ENGINE] - Difficulty: ${selectedQuestion.difficulty_b.toFixed(2)}`);
     console.log(`[ENGINE] - User ability: ${mastery.ability_theta.toFixed(2)}`);
     console.log(`[ENGINE] - Exposure count: ${selectedQuestion.exposureCount}`);
     console.log(`[ENGINE] - Exploration param: ${explorationParameter.toFixed(2)}`);
 
     // ==========================================
-    // STEP 5: Track Question Usage
+    // STEP 5: Track Question Usage & Update Exposure
     // ==========================================
-    await questionPoolManager.trackQuestionUsage(
-      selectedQuestion.id,
-      userId,
-      mastery.ability_theta
-    );
+    await Promise.all([
+      questionPoolManager.trackQuestionUsage(
+        selectedQuestion.id,
+        userId,
+        mastery.ability_theta
+      ),
+      updateExposureCount(selectedQuestion.id)
+    ]);
 
     // ==========================================
     // STEP 6: Update Cell Selection Stats

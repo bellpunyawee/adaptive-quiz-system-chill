@@ -7,6 +7,12 @@ export interface StoppingConfig {
   targetSEM: number;
   confidenceLevel: number;
   minInformationGain: number;
+  // PSER (Predictive SEM Reduction) config
+  enablePSER?: boolean;
+  pserThreshold?: number; // Stop if next item would improve SEM by less than this % (e.g., 0.05 = 5%)
+  // Minimum information threshold
+  enableMinInfoRule?: boolean;
+  minInfoThreshold?: number; // Stop if no items exceed this information threshold (e.g., 0.1)
 }
 
 const DEFAULT_CONFIG: StoppingConfig = {
@@ -14,8 +20,53 @@ const DEFAULT_CONFIG: StoppingConfig = {
   maxQuestions: 30,
   targetSEM: 0.3,
   confidenceLevel: 0.95,
-  minInformationGain: 0.01
+  minInformationGain: 0.01,
+  enablePSER: true,
+  pserThreshold: 0.05, // 5% improvement threshold
+  enableMinInfoRule: true,
+  minInfoThreshold: 0.1
 };
+
+/**
+ * Get stopping configuration optimized for different quiz types
+ */
+export function getStoppingConfigForQuizType(quizType: string): StoppingConfig {
+  switch (quizType) {
+    case 'baseline':
+      // Baseline assessments need to be thorough and precise
+      return {
+        minQuestions: 10,
+        maxQuestions: 50,
+        targetSEM: 0.25,  // Higher precision
+        confidenceLevel: 0.95,
+        minInformationGain: 0.01,
+        enablePSER: true,
+        pserThreshold: 0.03, // More aggressive (only 3% improvement needed)
+        enableMinInfoRule: true,
+        minInfoThreshold: 0.08
+      };
+
+    case 'practice-new':
+    case 'practice-review':
+      // Practice can be shorter and less precise (focus on exposure)
+      return {
+        minQuestions: 3,
+        maxQuestions: 20,
+        targetSEM: 0.4,   // Lower precision OK
+        confidenceLevel: 0.90,
+        minInformationGain: 0.02,
+        enablePSER: true,
+        pserThreshold: 0.10, // Stop faster (need 10% improvement to continue)
+        enableMinInfoRule: true,
+        minInfoThreshold: 0.15
+      };
+
+    case 'regular':
+    default:
+      // Regular quizzes use balanced settings
+      return DEFAULT_CONFIG;
+  }
+}
 
 /**
  * Calculate Standard Error of Measurement
@@ -23,6 +74,120 @@ const DEFAULT_CONFIG: StoppingConfig = {
 export function calculateSEM(totalInformation: number): number {
   if (totalInformation <= 0) return Infinity;
   return 1 / Math.sqrt(totalInformation);
+}
+
+/**
+ * Calculate Fisher Information for 2PL IRT model
+ * Fisher Information is used for SEM calculation (different from KLI used for item selection)
+ * I(θ) = a² × P(θ) × (1 - P(θ))
+ */
+function calculateFisherInformation(
+  theta: number,
+  difficulty_b: number,
+  discrimination_a: number
+): number {
+  const z = discrimination_a * (theta - difficulty_b);
+  const p = 1 / (1 + Math.exp(-z));
+  const pClamped = Math.max(0.01, Math.min(0.99, p));
+
+  return discrimination_a * discrimination_a * pClamped * (1 - pClamped);
+}
+
+/**
+ * Predict SEM reduction if we were to administer the next best available item
+ * Returns the projected SEM and improvement percentage
+ */
+async function predictSEMReduction(
+  userId: string,
+  quizId: string,
+  cellId: string,
+  currentTheta: number,
+  currentTotalInfo: number
+): Promise<{ projectedSEM: number; improvementPct: number; nextItemInfo: number }> {
+  // Get best available question for this cell
+  const availableQuestions = await prisma.question.findMany({
+    where: {
+      cellId,
+      isActive: true,
+      userAnswers: {
+        none: {
+          userId,
+          quizId
+        }
+      }
+    },
+    orderBy: { exposureCount: 'asc' },
+    take: 10 // Check top 10 least-exposed questions
+  });
+
+  if (availableQuestions.length === 0) {
+    return { projectedSEM: Infinity, improvementPct: 0, nextItemInfo: 0 };
+  }
+
+  // Find question with maximum Fisher Information at current theta
+  let maxInfo = 0;
+  for (const q of availableQuestions) {
+    const info = calculateFisherInformation(currentTheta, q.difficulty_b, q.discrimination_a);
+    if (info > maxInfo) {
+      maxInfo = info;
+    }
+  }
+
+  // Calculate projected information and SEM
+  const projectedTotalInfo = currentTotalInfo + maxInfo;
+  const currentSEM = calculateSEM(currentTotalInfo);
+  const projectedSEM = calculateSEM(projectedTotalInfo);
+
+  // Calculate improvement percentage
+  const improvementPct = currentSEM > 0
+    ? (currentSEM - projectedSEM) / currentSEM
+    : 0;
+
+  return { projectedSEM, improvementPct, nextItemInfo: maxInfo };
+}
+
+/**
+ * Check if any remaining questions provide minimum information threshold
+ * Returns true if we should stop (no informative questions left)
+ */
+async function checkMinimumInformationRule(
+  userId: string,
+  quizId: string,
+  cellId: string,
+  currentTheta: number,
+  threshold: number
+): Promise<{ shouldStop: boolean; maxAvailableInfo: number }> {
+  const availableQuestions = await prisma.question.findMany({
+    where: {
+      cellId,
+      isActive: true,
+      userAnswers: {
+        none: {
+          userId,
+          quizId
+        }
+      }
+    },
+    take: 20 // Check a reasonable sample
+  });
+
+  if (availableQuestions.length === 0) {
+    return { shouldStop: true, maxAvailableInfo: 0 };
+  }
+
+  // Find maximum available information
+  let maxInfo = 0;
+  for (const q of availableQuestions) {
+    const info = calculateFisherInformation(currentTheta, q.difficulty_b, q.discrimination_a);
+    if (info > maxInfo) {
+      maxInfo = info;
+    }
+  }
+
+  return {
+    shouldStop: maxInfo < threshold,
+    maxAvailableInfo: maxInfo
+  };
 }
 
 /**
@@ -164,6 +329,48 @@ export async function shouldStopQuiz(
 
   // Check if precision target is met
   if (averageSEM <= config.targetSEM) {
+    // Before stopping, check PSER if enabled
+    if (config.enablePSER && config.pserThreshold) {
+      // Get active cells (not mastered) to check
+      const activeMasteries = await prisma.userCellMastery.findMany({
+        where: {
+          userId,
+          mastery_status: 0 // Not mastered
+        }
+      });
+
+      // Check PSER for each active cell
+      for (const mastery of activeMasteries) {
+        const cellInfo = informationPerCell.get(mastery.cellId) || 0;
+        if (cellInfo > 0) {
+          const pser = await predictSEMReduction(
+            userId,
+            quizId,
+            mastery.cellId,
+            mastery.ability_theta,
+            cellInfo
+          );
+
+          // If any cell would benefit significantly, continue
+          if (pser.improvementPct >= config.pserThreshold) {
+            console.log(`[STOPPING] PSER check: Cell ${mastery.cellId} would improve ${(pser.improvementPct * 100).toFixed(1)}%, continuing...`);
+            return {
+              shouldStop: false,
+              reason: 'pser_suggests_continue',
+              details: {
+                questionCount: answerCount,
+                averageSEM,
+                cellsCompleted: masteredCells,
+                totalCells: allCells
+              }
+            };
+          }
+        }
+      }
+
+      console.log(`[STOPPING] PSER check: All cells below ${(config.pserThreshold * 100)}% improvement threshold`);
+    }
+
     return {
       shouldStop: true,
       reason: 'precision_achieved',
@@ -174,6 +381,46 @@ export async function shouldStopQuiz(
         totalCells: allCells
       }
     };
+  }
+
+  // Check minimum information rule if enabled
+  if (config.enableMinInfoRule && config.minInfoThreshold) {
+    const activeMasteries = await prisma.userCellMastery.findMany({
+      where: {
+        userId,
+        mastery_status: 0
+      }
+    });
+
+    let anyInformativeQuestions = false;
+    for (const mastery of activeMasteries) {
+      const minInfoCheck = await checkMinimumInformationRule(
+        userId,
+        quizId,
+        mastery.cellId,
+        mastery.ability_theta,
+        config.minInfoThreshold
+      );
+
+      if (!minInfoCheck.shouldStop) {
+        anyInformativeQuestions = true;
+        break;
+      }
+    }
+
+    if (!anyInformativeQuestions) {
+      console.log(`[STOPPING] No remaining questions exceed minimum information threshold ${config.minInfoThreshold}`);
+      return {
+        shouldStop: true,
+        reason: 'no_informative_items_remaining',
+        details: {
+          questionCount: answerCount,
+          averageSEM,
+          cellsCompleted: masteredCells,
+          totalCells: allCells
+        }
+      };
+    }
   }
 
   // Check information gain from recent questions

@@ -11,17 +11,18 @@ import { QuestionReviewCard } from "@/components/quiz/QuestionReviewCard";
 import { PerformanceSummary } from "@/components/quiz/PerformanceSummary";
 
 type PageProps = {
-  params: {
+  params: Promise<{
     quizId: string;
-  };
+  }>;
 };
 
-export default async function ResultsPage({ params: { quizId } }: PageProps) {
+export default async function ResultsPage({ params }: PageProps) {
+    const { quizId } = await params;
     const session = await auth();
     if (!session?.user) {
         redirect("/");
     }
-    
+
     const userAnswers = await prisma.userAnswer.findMany({
         where: {
             quizId: quizId,

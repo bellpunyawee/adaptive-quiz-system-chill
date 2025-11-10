@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { selectNextQuestionForUser, processUserAnswer } from '@/lib/adaptive-engine/engine-enhanced';
 import { selectBaselineQuestion, getBaselineProgress } from '@/lib/adaptive-engine/baseline-engine';
+import { updateSpacedRepetition } from '@/lib/spaced-repetition';
 import prisma from '@/lib/db';
 
 export async function GET(req: Request) {
@@ -197,7 +198,7 @@ export async function POST(req: Request) {
       }
     });
 
-    await prisma.userAnswer.create({
+    const createdAnswer = await prisma.userAnswer.create({
       data: {
         userId: session.user.id,
         quizId: quizId,
@@ -210,11 +211,23 @@ export async function POST(req: Request) {
 
     console.log(`[API] Answer recorded: Question ${questionId}, Correct: ${isCorrect}`);
 
+    // Update spaced repetition schedule for practice modes
+    if (quiz.quizType === 'practice-review' || quiz.quizType === 'practice-new' || quiz.quizType === 'review-mistakes') {
+      const responseTime = createdAnswer.responseTime || 30000; // Default 30s if not tracked
+      await updateSpacedRepetition(
+        session.user.id,
+        questionId,
+        isCorrect,
+        responseTime
+      );
+      console.log(`[SpacedRepetition] Updated review schedule for question ${questionId}`);
+    }
+
     // Process answer through adaptive engine (DOES NOT create duplicate)
     await processUserAnswer(
-      session.user.id, 
-      quizId, 
-      questionId, 
+      session.user.id,
+      quizId,
+      questionId,
       selectedOptionId
     );
 
