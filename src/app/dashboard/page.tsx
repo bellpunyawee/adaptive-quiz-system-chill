@@ -10,7 +10,7 @@ import { PerformanceChart, ChartData } from "@/app/dashboard/PerformanceChart";
 import { QuizStartDialog } from "@/components/QuizStartDialog";
 import { HowItWorksDialog } from "@/components/HowItWorksDialog";
 import { BaselineAssessmentCTA, BaselineCompletedCard } from "@/components/BaselineAssessmentCTA";
-import { Settings, Home, ChevronRight } from "lucide-react";
+import { Settings, Home, ChevronRight, TrendingUp } from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -107,6 +107,13 @@ export default async function DashboardPage() {
             {/* Quick Actions */}
             <QuizStartDialog />
 
+            <Link href="/dashboard/learner-model">
+              <Button variant="outline" size="lg">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Learner Model
+              </Button>
+            </Link>
+
             <Link href="/quiz/settings">
               <Button variant="outline" size="lg">
                 <Settings className="w-4 h-4 mr-2" />
@@ -132,7 +139,12 @@ export default async function DashboardPage() {
           <Card className="md:col-span-2 transition-all hover:shadow-md">
             <CardHeader>
               <CardTitle>Performance by Topic</CardTitle>
-              <CardDescription>Your average scores across different topics.</CardDescription>
+              <CardDescription>
+                Quiz accuracy across different topics.{' '}
+                <Link href="/dashboard/learner-model" className="text-primary hover:underline">
+                  View detailed ability analysis →
+                </Link>
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {chartData.length > 0 ? (
