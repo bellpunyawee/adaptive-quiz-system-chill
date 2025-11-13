@@ -288,11 +288,12 @@ export async function selectNextQuestionForUser(
     });
 
     const questionScores = availableQuestions.map(question => {
-      // Calculate Kullback-Leibler Information
+      // Calculate Kullback-Leibler Information (supports 2PL and 3PL)
       const kli = calculateKullbackLeiblerInformation(
         mastery.ability_theta,
         question.difficulty_b,
-        question.discrimination_a
+        question.discrimination_a,
+        question.guessing_c || 0  // Use 3PL if guessing parameter available
       );
 
       // Calculate exposure penalty
