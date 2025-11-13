@@ -49,20 +49,30 @@ model Question {
   explanation      String?
   cellId           String
   cell             Cell           @relation(fields: [cellId], references: [id])
+
+  // IRT Parameters (2PL - existing)
   difficulty_b     Float          @default(0)
   discrimination_a Float          @default(1)
-  
-  exposureCount    Int            @default(0)      
-  maxExposure      Int            @default(10)     
-  lastUsed         DateTime?                       
-  isActive         Boolean        @default(true)   
-  retiredAt        DateTime?                       
-  retirementReason String?                         
-  
-  responseCount    Int            @default(0)      
-  correctRate      Float?                          
-  lastCalibrated   DateTime?                       
-  
+
+  // 3PL Extension (NEW)
+  guessing_c       Float          @default(0.0)     // Pseudo-chance level (0-0.35)
+  irtModel         String         @default("2PL")   // "2PL" or "3PL"
+
+  // Exposure control (Sympson-Hetter)
+  exposureCount    Int            @default(0)
+  maxExposure      Int            @default(10)
+  lastUsed         DateTime?
+  isActive         Boolean        @default(true)
+  retiredAt        DateTime?
+  retirementReason String?
+
+  // Calibration tracking
+  responseCount    Int            @default(0)
+  correctRate      Float?
+  lastCalibrated   DateTime?
+  calibrationSampleSize Int?                       // Sample size used for calibration
+  calibrationDate       DateTime?                   // Last calibration date
+
   answerOptions    AnswerOption[]
   userAnswers      UserAnswer[]
   reviews          QuestionReview[]
@@ -70,6 +80,7 @@ model Question {
   @@index([cellId, isActive])
   @@index([exposureCount])
   @@index([lastUsed])
+  @@index([irtModel])
 }
 
 model AnswerOption {

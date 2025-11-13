@@ -1,13 +1,22 @@
 // src/lib/adaptive-engine/irt-estimator-enhanced.ts
 
 import prisma from "@/lib/db";
+import {
+  calculate3PLProbability,
+  calculate2PLProbability,
+  calculate3PLInformation,
+  calculate2PLInformation,
+  type IrtParameters
+} from './irt-3pl';
 
 /**
- * Response data structure for IRT estimation
+ * Response data structure for IRT estimation (supports both 2PL and 3PL)
  */
 export interface IRTResponse {
   difficulty_b: number;
   discrimination_a: number;
+  guessing_c?: number;      // Optional: for 3PL model
+  irtModel?: '2PL' | '3PL'; // Optional: model type
   isCorrect: boolean;
 }
 
@@ -22,32 +31,51 @@ export interface AbilityEstimate {
 }
 
 /**
- * Calculate probability of correct response using 2PL IRT model
+ * Calculate probability of correct response (supports 2PL and 3PL)
  */
 export function calculateProbability(
   theta: number,
   difficulty_b: number,
-  discrimination_a: number
+  discrimination_a: number,
+  guessing_c: number = 0
 ): number {
-  const z = discrimination_a * (theta - difficulty_b);
-  return 1 / (1 + Math.exp(-z));
+  if (guessing_c > 0.01) {
+    // Use 3PL model
+    return calculate3PLProbability(theta, {
+      a: discrimination_a,
+      b: difficulty_b,
+      c: guessing_c
+    });
+  } else {
+    // Use 2PL model
+    return calculate2PLProbability(theta, discrimination_a, difficulty_b);
+  }
 }
 
 /**
- * Calculate Fisher Information at a given theta
- * Information = a² × P(θ) × (1 - P(θ))
+ * Calculate Fisher Information at a given theta (supports 2PL and 3PL)
  */
 export function calculateInformation(
   theta: number,
   difficulty_b: number,
-  discrimination_a: number
+  discrimination_a: number,
+  guessing_c: number = 0
 ): number {
-  const p = calculateProbability(theta, difficulty_b, discrimination_a);
-  return discrimination_a * discrimination_a * p * (1 - p);
+  if (guessing_c > 0.01) {
+    // Use 3PL information function
+    return calculate3PLInformation(theta, {
+      a: discrimination_a,
+      b: difficulty_b,
+      c: guessing_c
+    });
+  } else {
+    // Use 2PL information function
+    return calculate2PLInformation(theta, discrimination_a, difficulty_b);
+  }
 }
 
 /**
- * Calculate Standard Error of Measurement
+ * Calculate Standard Error of Measurement (supports 2PL and 3PL)
  * SEM = 1 / sqrt(Information)
  */
 export function calculateSEM(
@@ -55,11 +83,16 @@ export function calculateSEM(
   responses: IRTResponse[]
 ): number {
   if (responses.length === 0) return Infinity;
-  
+
   const totalInformation = responses.reduce((sum, r) => {
-    return sum + calculateInformation(theta, r.difficulty_b, r.discrimination_a);
+    return sum + calculateInformation(
+      theta,
+      r.difficulty_b,
+      r.discrimination_a,
+      r.guessing_c || 0
+    );
   }, 0);
-  
+
   if (totalInformation === 0) return Infinity;
   return 1 / Math.sqrt(totalInformation);
 }
@@ -88,19 +121,45 @@ export function estimateAbilityMLE(
     let secondDerivative = 0;
 
     for (const item of responses) {
-      const z = item.discrimination_a * (theta - item.difficulty_b);
-      const p = 1 / (1 + Math.exp(-z));
-      
+      const p = calculateProbability(
+        theta,
+        item.difficulty_b,
+        item.discrimination_a,
+        item.guessing_c || 0
+      );
+
       // Clamp probability to avoid numerical issues
       const pClamped = Math.max(0.0001, Math.min(0.9999, p));
-      
-      // First derivative (score function): u = a × (x - p)
-      const score = item.discrimination_a * ((item.isCorrect ? 1 : 0) - pClamped);
-      firstDerivative += score;
-      
-      // Second derivative (information): I = a² × p × (1 - p)
-      const information = item.discrimination_a * item.discrimination_a * pClamped * (1 - pClamped);
-      secondDerivative -= information;
+
+      // For 3PL, the derivatives are more complex
+      const c = item.guessing_c || 0;
+
+      if (c > 0.01) {
+        // 3PL derivatives
+        const pStar = pClamped - c;
+        const qStar = 1 - c;
+
+        // First derivative for 3PL
+        const score = (item.discrimination_a * pStar * (qStar - pStar) / qStar) *
+          ((item.isCorrect ? 1 : 0) - pClamped) / (pClamped * (1 - pClamped));
+        firstDerivative += score;
+
+        // Second derivative (information) for 3PL
+        const information = calculateInformation(
+          theta,
+          item.difficulty_b,
+          item.discrimination_a,
+          c
+        );
+        secondDerivative -= information;
+      } else {
+        // 2PL derivatives (original logic)
+        const score = item.discrimination_a * ((item.isCorrect ? 1 : 0) - pClamped);
+        firstDerivative += score;
+
+        const information = item.discrimination_a * item.discrimination_a * pClamped * (1 - pClamped);
+        secondDerivative -= information;
+      }
     }
 
     // Check for convergence issues
@@ -163,12 +222,17 @@ export function estimateAbilityEAP(
     const zScore = (theta - priorMean) / priorSD;
     const priorProb = Math.exp(-0.5 * zScore * zScore) / (priorSD * Math.sqrt(2 * Math.PI));
     
-    // Likelihood: Product of response probabilities
+    // Likelihood: Product of response probabilities (supports 2PL and 3PL)
     let likelihood = 1.0;
     for (const item of responses) {
-      const p = calculateProbability(theta, item.difficulty_b, item.discrimination_a);
+      const p = calculateProbability(
+        theta,
+        item.difficulty_b,
+        item.discrimination_a,
+        item.guessing_c || 0
+      );
       const pClamped = Math.max(0.0001, Math.min(0.9999, p));
-      
+
       // P(response | theta) = p^x × (1-p)^(1-x)
       likelihood *= item.isCorrect ? pClamped : (1 - pClamped);
     }
@@ -254,27 +318,28 @@ export function estimateAbility(
 
 /**
  * Calculate Kullback-Leibler Information (KLI)
- * Measures how informative a question is for the learner
+ * Measures how informative a question is for the learner (supports 2PL and 3PL)
  */
 export function calculateKullbackLeiblerInformation(
   theta: number,
   difficulty_b: number,
-  discrimination_a: number
+  discrimination_a: number,
+  guessing_c: number = 0
 ): number {
-  const p_theta = calculateProbability(theta, difficulty_b, discrimination_a);
+  const p_theta = calculateProbability(theta, difficulty_b, discrimination_a, guessing_c);
   const p_clamped = Math.max(0.01, Math.min(0.99, p_theta));
-  
+
   // Prior distribution (uniform: 50% chance)
   const q_x = 0.5;
-  
+
   // KL Divergence: KL(P||Q) = p×log(p/q) + (1-p)×log((1-p)/(1-q))
   const term1 = p_clamped * Math.log(p_clamped / q_x);
   const term2 = (1 - p_clamped) * Math.log((1 - p_clamped) / (1 - q_x));
-  
+
   if (!isFinite(term1) || !isFinite(term2)) {
     return 0;
   }
-  
+
   return Math.max(0, term1 + term2);
 }
 
@@ -301,10 +366,12 @@ export async function recalibrateUserParameters(userId: string): Promise<void> {
 
     if (cellAnswers.length === 0) continue;
 
-    // Prepare responses for estimation
+    // Prepare responses for estimation (includes 3PL parameters)
     const responses: IRTResponse[] = cellAnswers.map(ans => ({
       difficulty_b: ans.question.difficulty_b,
       discrimination_a: ans.question.discrimination_a,
+      guessing_c: ans.question.guessing_c || 0,
+      irtModel: (ans.question.irtModel as '2PL' | '3PL') || '2PL',
       isCorrect: ans.isCorrect
     }));
 
