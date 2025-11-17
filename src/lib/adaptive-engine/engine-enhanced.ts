@@ -10,6 +10,7 @@ import { shouldStopQuiz } from "./stopping-criteria";
 import { engineMonitor, PerformanceTimer } from "./monitoring";
 import { getInitialThetaEstimate, selectWarmupQuestion } from "./warm-up-strategy";
 import { selectWithExposureControl, updateExposureCount, DEFAULT_EXPOSURE_CONFIG } from "./sympson-hetter";
+import { getTier2ConfigForQuizType, getDecayingExplorationParam, getDiscriminationBonus } from "./tier2-config";
 import { Prisma } from "@prisma/client";
 
 const questionWithAnswerOptions = Prisma.validator<Prisma.QuestionDefaultArgs>()({
@@ -100,7 +101,7 @@ export async function selectNextQuestionForUser(
       }
     });
 
-    const explorationParameter = quizSettings?.explorationParam ?? 1.0;
+    const baseExplorationParam = quizSettings?.explorationParam ?? 1.0; // FIXED: Back to 1.0 (was incorrectly set to 1.5)
     const maxQuestionsLimit = quizSettings?.maxQuestions ?? 50;
     const topicSelectionMode = quizSettings?.topicSelection ?? 'system';
     const quizType = quizSettings?.quizType ?? 'regular';
@@ -108,12 +109,16 @@ export async function selectNextQuestionForUser(
       ? JSON.parse(quizSettings.selectedCells) as string[]
       : null;
 
+    // TIER 2 PHASE 1: Load configuration
+    const tier2Config = getTier2ConfigForQuizType(quizType);
+
     console.log(`[ENGINE] Quiz Settings:`, {
-      explorationParameter,
+      baseExplorationParam,
       maxQuestionsLimit,
       topicSelectionMode,
       quizType,
-      selectedCellsCount: selectedCellIds?.length ?? 0
+      selectedCellsCount: selectedCellIds?.length ?? 0,
+      tier2Enabled: tier2Config.exploration.useDecay || tier2Config.questionSelection.useDiscriminationBonus
     });
 
     // ==========================================
@@ -287,6 +292,13 @@ export async function selectNextQuestionForUser(
       questionSelectionCounts.set(answer.questionId, count + 1);
     });
 
+    // TIER 2 PHASE 1: Calculate decaying exploration parameter
+    const explorationParameter = getDecayingExplorationParam(
+      totalQuizSelections,
+      maxQuestionsLimit,
+      tier2Config.exploration
+    );
+
     const questionScores = availableQuestions.map(question => {
       // Calculate Kullback-Leibler Information (supports 2PL and 3PL)
       const kli = calculateKullbackLeiblerInformation(
@@ -296,21 +308,27 @@ export async function selectNextQuestionForUser(
         question.guessing_c || 0  // Use 3PL if guessing parameter available
       );
 
-      // Calculate exposure penalty
-      const exposurePenalty = question.exposureCount > 0 
-        ? Math.log(question.exposureCount + 1) * 0.1 
+      // TIER 2 PHASE 1: Add discrimination bonus
+      const discriminationBonus = getDiscriminationBonus(
+        question.discrimination_a,
+        tier2Config.questionSelection
+      );
+
+      // Calculate exposure penalty (using Tier 2 config weight)
+      const exposurePenalty = question.exposureCount > 0
+        ? Math.log(question.exposureCount + 1) * tier2Config.questionSelection.exposurePenaltyWeight
         : 0;
 
       // Get selection count for this specific question in this quiz
       const questionSelections = questionSelectionCounts.get(question.id) || 0;
 
-      // Calculate UCB score with CUSTOM EXPLORATION PARAMETER
+      // Calculate UCB score with TIER 2 ENHANCEMENTS
       const ucbScore = calculateUCB(
-        kli,                       // Exploitation: information value
-        -exposurePenalty,          // Penalty for overuse
-        explorationParameter,      // USE CUSTOM EXPLORATION PARAMETER
-        questionSelections,        // This item's selection count
-        totalQuizSelections + 1    // Total selections
+        kli + discriminationBonus,  // TIER 2: Boost high-discrimination items
+        -exposurePenalty,            // Penalty for overuse
+        explorationParameter,        // TIER 2: Decaying exploration parameter
+        questionSelections,          // This item's selection count
+        totalQuizSelections + 1      // Total selections
       );
 
       return {
@@ -526,7 +544,7 @@ export async function processUserAnswer(
     }
   });
 
-  // Check for mastery achievement
+  // Check for mastery achievement (SELECTIVE ROLLBACK: reverted to 0.3)
   // Criteria: Low standard error AND sufficient responses
   if (abilityEstimate.sem < 0.3 && responses.length >= 3) {
     await prisma.userCellMastery.update({

@@ -136,3 +136,10 @@ temp/
 # Documentation build output (if using docs generators)
 /docs/.vitepress/dist
 /docs/.vitepress/cache
+# Optimization artifacts
+optimization_archive/
+*.txt
+
+# Keep only final results
+!optionA-adaptive-metrics.txt
+!optionA-monte-carlo.txt
