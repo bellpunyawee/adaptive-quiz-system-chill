@@ -4,10 +4,11 @@
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PerformanceChart, type ChartData } from '@/app/dashboard/PerformanceChart';
+import { PersonalizedFeedback } from '@/components/quiz/PersonalizedFeedback';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Info, Lightbulb, TrendingUp, Target } from 'lucide-react';
+import { Info } from 'lucide-react';
 
 type CellResult = {
   cellId: string;
@@ -118,39 +119,6 @@ export default function BaselineResultsPage({ params }: { params: Promise<{ quiz
     return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
   };
 
-  // Generate key takeaways
-  const generateKeyTakeaways = () => {
-    const takeaways = [];
-
-    if (results.strengths.length > 0) {
-      const topStrength = results.strengths[0];
-      takeaways.push({
-        icon: TrendingUp,
-        text: `You excel at ${topStrength.cellName} with ${topStrength.accuracy}% accuracy`,
-        type: 'strength'
-      });
-    }
-
-    if (results.areasForGrowth.length > 0) {
-      const topGrowth = results.areasForGrowth[0];
-      takeaways.push({
-        icon: Target,
-        text: `Focus on ${topGrowth.cellName} to improve your overall Python skills`,
-        type: 'growth'
-      });
-    }
-
-    takeaways.push({
-      icon: Lightbulb,
-      text: `You're at ${getAbilityLevel(results.overall.averageAbility)} level overall - ready for personalized adaptive quizzes`,
-      type: 'next'
-    });
-
-    return takeaways;
-  };
-
-  const keyTakeaways = generateKeyTakeaways();
-
   return (
     <TooltipProvider>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -167,29 +135,8 @@ export default function BaselineResultsPage({ params }: { params: Promise<{ quiz
           </p>
         </div>
 
-        {/* Reflections */}
-        <Card className="mb-8 border-2 border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lightbulb className="h-5 w-5" />
-              Personalized Feedback (Reflections) 
-            </CardTitle>
-            <CardDescription> (IN-PROGRESS) - Quick insights from your assessment</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {keyTakeaways.map((takeaway, index) => {
-                const Icon = takeaway.icon;
-                return (
-                  <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-background/50">
-                    <Icon className="h-5 w-5 mt-0.5 flex-shrink-0 text-primary" />
-                    <p className="text-sm leading-relaxed">{takeaway.text}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+        {/* AI-Powered Personalized Feedback */}
+        <PersonalizedFeedback quizId={quizId} autoLoad={true} />
 
       {/* Overall Summary */}
       <Card className="mb-8">

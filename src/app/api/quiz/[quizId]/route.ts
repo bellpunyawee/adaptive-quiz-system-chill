@@ -84,7 +84,11 @@ export async function GET(req: Request) {
 
     // Remove sensitive IRT parameters from response
     const { discrimination_a, difficulty_b, answerOptions, ...publicQuestionData } = nextQuestion;
-    const publicOptions = answerOptions.map(({ id, text }) => ({ id, text }));
+
+    // Shuffle options to prevent pattern guessing and add stochasticity
+    const publicOptions = answerOptions
+      .map(({ id, text }) => ({ id, text }))
+      .sort(() => Math.random() - 0.5);
 
     // Get baseline progress if this is a baseline quiz
     let baselineProgress;
@@ -137,11 +141,20 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { questionId, selectedOptionId } = body;
+    const { questionId, selectedOptionId, responseTime, questionDisplayedAt } = body;
 
     if (!questionId || !selectedOptionId) {
       return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
     }
+
+    // Validate response time (prevent invalid data)
+    const validatedResponseTime =
+      responseTime &&
+      typeof responseTime === 'number' &&
+      responseTime > 0 &&
+      responseTime < 300000 // Max 5 minutes
+        ? responseTime
+        : null;
 
     // ===== CRITICAL FIX: Check for duplicate submission =====
     const existingAnswer = await prisma.userAnswer.findFirst({
@@ -206,10 +219,12 @@ export async function POST(req: Request) {
         selectedOptionId: selectedOptionId,
         isCorrect: isCorrect,
         abilityAtTime: userMastery?.ability_theta || 0,
+        responseTime: validatedResponseTime,
+        questionDisplayedAt: questionDisplayedAt ? new Date(questionDisplayedAt) : null,
       },
     });
 
-    console.log(`[API] Answer recorded: Question ${questionId}, Correct: ${isCorrect}`);
+    console.log(`[API] Answer recorded: Question ${questionId}, Correct: ${isCorrect}, Response Time: ${validatedResponseTime}ms`);
 
     // Update spaced repetition schedule for practice modes
     if (quiz.quizType === 'practice-review' || quiz.quizType === 'practice-new' || quiz.quizType === 'review-mistakes') {

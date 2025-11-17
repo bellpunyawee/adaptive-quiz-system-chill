@@ -58,6 +58,20 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
   const [timeWarning, setTimeWarning] = useState(false);
   const [timeUp, setTimeUp] = useState(false);
 
+  // Track when question was displayed for engagement metrics
+  const [questionDisplayedAt, setQuestionDisplayedAt] = useState<number | null>(null);
+
+  // Auto-redirect to results when quiz is completed
+  useEffect(() => {
+    if (quizStatus === 'completed') {
+      const redirectTimer = setTimeout(() => {
+        router.push(`/quiz/results/${params.quizId}`);
+      }, 2000); // 2 second delay to show completion message
+
+      return () => clearTimeout(redirectTimer);
+    }
+  }, [quizStatus, params.quizId, router]);
+
   useEffect(() => {
     async function fetchQuizSettings() {
       try {
@@ -126,9 +140,20 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
     fetchNextQuestion();
   }, [params.quizId]);
 
+  // Capture timestamp when new question is displayed
+  useEffect(() => {
+    if (question && quizStatus === 'in-progress') {
+      setQuestionDisplayedAt(Date.now());
+    }
+  }, [question?.id, quizStatus]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOption || !question) return;
+
+    // Calculate response time for engagement tracking
+    const responseTime = questionDisplayedAt ? Date.now() - questionDisplayedAt : null;
+    const displayedAt = questionDisplayedAt ? new Date(questionDisplayedAt).toISOString() : null;
 
     try {
       const res = await fetch(`/api/quiz/${params.quizId}`, {
@@ -137,6 +162,8 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
         body: JSON.stringify({
           questionId: question.id,
           selectedOptionId: selectedOption,
+          responseTime: responseTime, // Time in milliseconds
+          questionDisplayedAt: displayedAt, // ISO timestamp
         }),
       });
       if (!res.ok) throw new Error('Failed to submit answer');
@@ -181,12 +208,26 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
           <CardHeader>
             <CardTitle className="text-2xl">Quiz Complete!</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="mb-6 text-muted-foreground">You have completed the assessment.</p>
-            <div className="flex justify-center gap-4">
-              <Button asChild><Link href="/dashboard">Return to Dashboard</Link></Button>
-              <Button variant="outline" asChild>
-                <Link href={`/quiz/results/${params.quizId}`}>View Results</Link>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-center">
+              <CheckCircle className="h-16 w-16 text-green-600 dark:text-green-400" />
+            </div>
+            <p className="text-muted-foreground">You have completed the assessment.</p>
+            <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <p className="text-sm font-medium">Generating personalized feedback...</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Redirecting to results page shortly
+              </p>
+            </div>
+            <div className="flex justify-center gap-4 pt-2">
+              <Button asChild variant="outline">
+                <Link href="/dashboard">Return to Dashboard</Link>
+              </Button>
+              <Button asChild>
+                <Link href={`/quiz/results/${params.quizId}`}>View Results Now</Link>
               </Button>
             </div>
           </CardContent>

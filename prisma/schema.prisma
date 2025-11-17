@@ -31,6 +31,9 @@ model User {
   engineLogs      EngineLog[]
   abilityHistory  AbilityHistory[]
   questionReviews QuestionReview[]
+  feedbackLogs    FeedbackLog[]
+  learnerPreferences LearnerPreferences?
+  knowledgeGaps   KnowledgeGap[]
 }
 
 model Cell {
@@ -151,8 +154,9 @@ model UserAnswer {
   userId           String
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  responseTime     Int?             
-  abilityAtTime    Float?           
+  responseTime        Int?      // Time taken to answer in milliseconds
+  abilityAtTime       Float?    // User's ability estimate when question was answered
+  questionDisplayedAt DateTime? // When question was shown to user (for engagement tracking)
 }
 
 model EngineLog {
@@ -219,4 +223,54 @@ model QuestionReview {
   @@unique([userId, questionId])
   @@index([userId, nextReviewDate])
   @@index([nextReviewDate])
+}
+
+// LLM-Based Personalized Feedback Models
+
+model FeedbackLog {
+  id            String   @id @default(cuid())
+  userId        String
+  quizId        String
+  feedbackText  String   // Generated feedback content
+  feedbackType  String   @default("quiz_summary") // quiz_summary, dashboard, etc.
+  tokensUsed    Int      // Track API costs (input + output)
+  responseTime  Int      // Performance monitoring (ms)
+  usedCache     Boolean  @default(false)
+  modelUsed     String   // gemini-2.5-flash, template, etc.
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([quizId])
+  @@index([createdAt])
+  @@index([modelUsed])
+}
+
+model LearnerPreferences {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  feedbackDetail    String   @default("balanced") // concise, balanced, detailed
+  focusAreas        String?  // JSON array: ["conceptual", "procedural", "application"]
+  motivationStyle   String   @default("growth")   // growth, achievement, autonomy
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model KnowledgeGap {
+  id             String   @id @default(cuid())
+  userId         String
+  topicId        String   // cellId reference
+  gapDescription String   // LLM-identified knowledge gap
+  severity       String   @default("moderate") // minor, moderate, critical
+  addressed      Boolean  @default(false)
+  identifiedAt   DateTime @default(now())
+  addressedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, topicId])
+  @@index([addressed])
+  @@index([severity])
 }

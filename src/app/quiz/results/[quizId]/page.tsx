@@ -9,6 +9,7 @@ import { Home, ChevronRight, Award, RefreshCw, Target, AlertCircle } from "lucid
 import { formatDuration } from "@/lib/utils";
 import { QuestionReviewCard } from "@/components/quiz/QuestionReviewCard";
 import { PerformanceSummary } from "@/components/quiz/PerformanceSummary";
+import { PersonalizedFeedback } from "@/components/quiz/PersonalizedFeedback";
 
 type PageProps = {
   params: Promise<{
@@ -202,6 +203,9 @@ export default async function ResultsPage({ params }: PageProps) {
                     averageScore={averageScore}
                     baselineScore={baselineScore}
                 />
+
+                {/* AI-Powered Personalized Feedback */}
+                <PersonalizedFeedback quizId={quizId} autoLoad={true} />
 
                 {/* Action Buttons */}
                 {(weakTopics.length > 0 || incorrectQuestions.length > 0) && (
