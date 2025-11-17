@@ -52,9 +52,9 @@ export async function selectWarmupQuestion(
   cellId: string,
   initialTheta: number
 ) {
-  // Define warm-up pool criteria
-  const difficultyRange = 0.8; // ±0.8 from initial theta
-  const minDiscrimination = 1.0; // High discrimination questions only
+  // Define warm-up pool criteria (SELECTIVE ROLLBACK: kept wider range ±1.2, reverted discrimination to 1.0)
+  const difficultyRange = 1.2; // ±1.2 from initial theta (KEPT - helps optimal questions)
+  const minDiscrimination = 1.0; // High discrimination questions only (REVERTED - 1.2 was too restrictive)
 
   const warmupPool = await prisma.question.findMany({
     where: {

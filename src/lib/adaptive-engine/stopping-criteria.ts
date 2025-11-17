@@ -22,7 +22,7 @@ const DEFAULT_CONFIG: StoppingConfig = {
   confidenceLevel: 0.95,
   minInformationGain: 0.01,
   enablePSER: true,
-  pserThreshold: 0.05, // 5% improvement threshold
+  pserThreshold: 0.05, // SELECTIVE ROLLBACK: reverted to 0.05 (0.03 hurt reliability)
   enableMinInfoRule: true,
   minInfoThreshold: 0.1
 };
