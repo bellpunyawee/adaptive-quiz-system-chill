@@ -10,6 +10,7 @@ import { PerformanceChart, ChartData } from "@/app/dashboard/PerformanceChart";
 import { QuizStartDialog } from "@/components/QuizStartDialog";
 import { HowItWorksDialog } from "@/components/HowItWorksDialog";
 import { BaselineAssessmentCTA, BaselineCompletedCard } from "@/components/BaselineAssessmentCTA";
+import { RecentFeedback } from "@/components/dashboard/RecentFeedback";
 import { Settings, Home, ChevronRight, TrendingUp } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -135,7 +136,7 @@ export default async function DashboardPage() {
         ) : null}
 
         {/* Performance and Progress Cards */}
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-3 mb-6">
           <Card className="md:col-span-2 transition-all hover:shadow-md">
             <CardHeader>
               <CardTitle>Performance by Topic</CardTitle>
@@ -183,8 +184,13 @@ export default async function DashboardPage() {
           </Card>
         </div>
 
-        {/* Recent Quizzes */}
-        <Card className="mt-6 transition-all hover:shadow-md">
+        {/* AI Feedback and Recent Quizzes */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Recent AI Feedback */}
+          <RecentFeedback limit={3} />
+
+          {/* Recent Quizzes */}
+          <Card className="transition-all hover:shadow-md">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -232,6 +238,7 @@ export default async function DashboardPage() {
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

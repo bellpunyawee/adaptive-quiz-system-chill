@@ -450,8 +450,8 @@ export async function processUserAnswer(
 
   const isCorrect = selectedOption.isCorrect;
 
-  // Get user's current ability for this cell
-  const mastery = await prisma.userCellMastery.findUnique({
+  // Get or create user's mastery record for this cell
+  let mastery = await prisma.userCellMastery.findUnique({
     where: {
       userId_cellId: {
         userId,
@@ -460,8 +460,22 @@ export async function processUserAnswer(
     }
   });
 
+  // If mastery record doesn't exist, create it with default values
   if (!mastery) {
-    throw new Error(`Mastery record not found for user ${userId}, cell ${question.cellId}`);
+    console.log(`[ENGINE] Creating new mastery record for user ${userId}, cell ${question.cellId}`);
+    mastery = await prisma.userCellMastery.create({
+      data: {
+        userId,
+        cellId: question.cellId,
+        ability_theta: 0.0,  // Start at neutral ability
+        selection_count: 0,
+        mastery_status: 0,
+        sem: 1.0,  // High uncertainty initially
+        confidence: 0.5,
+        responseCount: 0,
+        lastEstimated: new Date()
+      }
+    });
   }
 
   const oldTheta = mastery.ability_theta;
