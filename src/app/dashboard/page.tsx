@@ -184,12 +184,12 @@ export default async function DashboardPage() {
           </Card>
         </div>
 
-        {/* AI Feedback and Recent Quizzes */}
+        {/* Personalized Feedback and Attempt History */}
         <div className="grid gap-6 md:grid-cols-2">
           {/* Recent AI Feedback */}
           <RecentFeedback limit={3} />
 
-          {/* Recent Quizzes */}
+          {/* Recent Quiz Attempt */}
           <Card className="transition-all hover:shadow-md">
           <CardHeader>
             <div className="flex items-center justify-between">

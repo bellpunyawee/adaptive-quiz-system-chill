@@ -4,7 +4,7 @@ import Link from 'next/link';
 import prisma from '@/lib/db';
 import { TopicMasteryRadar } from '@/components/learner-model/TopicMasteryRadar';
 import { LearningCurveChart } from '@/components/learner-model/LearningCurveChart';
-import { LearnerModelIntro } from '@/components/learner-model/LearnerModelIntro';
+import { LearnerModelModalTrigger } from '@/components/learner-model/LearnerModelModalTrigger';
 import { Home, ChevronRight, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -171,13 +171,14 @@ export default async function LearnerModelPage() {
 
       {/* Header with Back Link */}
       <div className="mb-8">
-        <div className="flex items-center gap-4 mb-4">
+        <div className="flex items-center justify-between gap-4 mb-4">
           <Link href="/dashboard">
             <Button variant="ghost" size="sm" className="gap-2">
               <ArrowLeft className="h-4 w-4" />
               Back to Dashboard
             </Button>
           </Link>
+          <LearnerModelModalTrigger />
         </div>
         <h1 className="text-3xl font-bold mb-2">Learner Model Dashboard</h1>
         <p className="text-muted-foreground">
@@ -190,8 +191,6 @@ export default async function LearnerModelPage() {
       </div>
 
       <div className="space-y-8">
-        {/* Educational Intro */}
-        <LearnerModelIntro />
 
         {/* Topic Mastery Section */}
         {masteryData && (

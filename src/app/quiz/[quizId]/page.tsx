@@ -395,18 +395,40 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
               </RadioGroup>
 
               {feedback && (
-                <div className={`mt-4 p-4 rounded-md animate-in slide-in-from-top duration-300 ${
-                  feedback.isCorrect 
-                    ? 'bg-green-50 border border-green-200 dark:bg-green-950 dark:border-green-800' 
-                    : 'bg-red-50 border border-red-200 dark:bg-red-950 dark:border-red-800'
+                <div className={`mt-6 p-6 rounded-lg border-2 animate-in slide-in-from-top duration-300 shadow-md ${
+                  feedback.isCorrect
+                    ? 'bg-green-50 border-green-300 dark:bg-green-950 dark:border-green-700'
+                    : 'bg-red-50 border-red-300 dark:bg-red-950 dark:border-red-700'
                 }`}>
-                  <p className={`font-semibold mb-2 ${
-                    feedback.isCorrect ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'
-                  }`}>
-                    {feedback.isCorrect ? '✓ Correct!' : '✗ Incorrect'}
-                  </p>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                      feedback.isCorrect
+                        ? 'bg-green-500 dark:bg-green-600'
+                        : 'bg-red-500 dark:bg-red-600'
+                    }`}>
+                      <span className="text-white text-2xl font-bold">
+                        {feedback.isCorrect ? '✓' : '✗'}
+                      </span>
+                    </div>
+                    <p className={`font-bold text-xl ${
+                      feedback.isCorrect ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'
+                    }`}>
+                      {feedback.isCorrect ? 'Correct!' : 'Incorrect'}
+                    </p>
+                  </div>
                   {feedback.explanation && (
-                    <p className="text-sm text-muted-foreground">{feedback.explanation}</p>
+                    <div className={`p-5 rounded-md border-l-4 ${
+                      feedback.isCorrect
+                        ? 'bg-white dark:bg-green-900/20 border-green-500'
+                        : 'bg-white dark:bg-red-900/20 border-red-500'
+                    }`}>
+                      <p className="font-semibold text-base mb-2 text-foreground">
+                        💡 Explanation:
+                      </p>
+                      <p className="text-base leading-relaxed text-foreground">
+                        {feedback.explanation}
+                      </p>
+                    </div>
                   )}
                 </div>
               )}

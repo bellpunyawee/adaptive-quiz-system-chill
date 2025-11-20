@@ -274,3 +274,38 @@ model KnowledgeGap {
   @@index([addressed])
   @@index([severity])
 }
+
+// Contextual Bandit Models
+
+model ContextualModel {
+  id                String   @id // questionId
+  A_matrix          Bytes    // 15×15 design matrix (serialized)
+  b_vector          Bytes    // 15D reward vector (serialized)
+  A_inv_matrix      Bytes    // 15×15 inverse matrix (cached, serialized)
+  theta_hat         Bytes    // 15D weight vector (serialized)
+  observationCount  Int      @default(0)
+  lastUpdated       DateTime @updatedAt
+  createdAt         DateTime @default(now())
+
+  @@index([lastUpdated])
+  @@index([observationCount])
+}
+
+model DecisionSnapshot {
+  id              String   @id @default(cuid())
+  userId          String
+  questionId      String
+  quizId          String
+  context         Bytes    // 15D context vector (serialized)
+  ucbScore        Float    // Final UCB score used for selection
+  muScore         Float    // Expected reward component
+  sigmaScore      Float    // Uncertainty component
+  thetaAtTime     Float    // User ability at decision time
+  algorithm       String   @default("hybrid") // 'linucb', 'hybrid', 'ucb'
+  timestamp       DateTime @default(now())
+
+  @@index([userId, quizId])
+  @@index([questionId])
+  @@index([timestamp])
+  @@index([algorithm])
+}
