@@ -56,7 +56,7 @@ export function RecentFeedback({ limit = 3 }: RecentFeedbackProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            Recent AI Insights
+            Personalized Feedback
           </CardTitle>
           <CardDescription>Your latest personalized feedback</CardDescription>
         </CardHeader>
@@ -75,7 +75,7 @@ export function RecentFeedback({ limit = 3 }: RecentFeedbackProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            Recent AI Insights
+            Personalized Feedback
           </CardTitle>
           <CardDescription>Get personalized feedback on your quizzes</CardDescription>
         </CardHeader>
@@ -106,9 +106,9 @@ export function RecentFeedback({ limit = 3 }: RecentFeedbackProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          Recent AI Insights
+          Personalized Feedback
         </CardTitle>
-        <CardDescription>Personalized feedback from your latest quizzes</CardDescription>
+        <CardDescription>AI-powered insights from your latest quizzes</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {feedbacks.map((feedback) => (

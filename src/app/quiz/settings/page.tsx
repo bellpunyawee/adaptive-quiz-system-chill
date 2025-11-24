@@ -500,20 +500,37 @@ export default function QuizSettingsPage() {
                 </div>
               </div>
 
-              {/* Explanation */}
-              <div className="mt-4 p-3 bg-muted/50 rounded-md border">
-                <p className="text-sm text-muted-foreground">
-                  <strong className="text-foreground">
+              {/* Explanation - Expanded */}
+              <div className="mt-6 p-6 bg-muted/50 rounded-lg border-2">
+                <p className="text-base text-muted-foreground mb-4 leading-relaxed">
+                  <strong className="text-foreground text-lg">
                     {explorationParam < 25 ? 'Focus on Mastery:' :
                      explorationParam > 75 ? 'Focus on Discovery:' : 'Balanced:'}
                   </strong>
-                  {' '}
-                  {explorationParam < 25
-                    ? 'Prioritize mastering topics you already know. More questions from familiar areas to reinforce learning.'
-                    : explorationParam > 75
-                    ? 'Explore new topics and expand your knowledge. More questions from less familiar areas.'
-                    : 'A mix of familiar and new topics. The system adapts to both reinforce and introduce concepts.'}
+                  <br />
+                  <span className="text-base">
+                    {explorationParam < 25
+                      ? 'Prioritize mastering topics you already know. More questions from familiar areas to reinforce learning.'
+                      : explorationParam > 75
+                      ? 'Explore new topics and expand your knowledge. More questions from less familiar areas.'
+                      : 'A mix of familiar and new topics. The system adapts to both reinforce and introduce concepts.'}
+                  </span>
                 </p>
+
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-sm font-semibold text-foreground mb-2">How Question Selection Works:</p>
+                  <ul className="text-sm text-muted-foreground space-y-2 ml-4">
+                    <li className="leading-relaxed">
+                      <strong className="text-foreground">IRT-UCB Algorithm:</strong> Uses Item Response Theory to select questions matching your ability level, with Upper Confidence Bound for exploration
+                    </li>
+                    <li className="leading-relaxed">
+                      <strong className="text-foreground">Contextual Bandit (Advanced):</strong> If enabled by your instructor, the system uses LinUCB to personalize questions based on your learning patterns, topic mastery, and performance history
+                    </li>
+                    <li className="leading-relaxed">
+                      <strong className="text-foreground">Sympson-Hetter Control:</strong> Prevents question over-exposure to ensure fair assessment
+                    </li>
+                  </ul>
+                </div>
               </div>
             </CardContent>
           </Card>

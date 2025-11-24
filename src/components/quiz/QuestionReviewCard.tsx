@@ -141,16 +141,20 @@ export function QuestionReviewCard({
               </div>
             </div>
 
-            {/* Explanation */}
+            {/* Explanation - Enhanced */}
             {explanation && (
-              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg p-3">
-                <div className="flex items-start gap-2">
-                  <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-1">
-                      Explanation
+              <div className="bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-300 dark:border-blue-800 rounded-lg p-5 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500 dark:bg-blue-600 flex-shrink-0 mt-0.5">
+                    <Info className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-base font-semibold text-blue-900 dark:text-blue-200 mb-2">
+                      💡 Explanation
                     </p>
-                    <p className="text-sm text-blue-800 dark:text-blue-400">{explanation}</p>
+                    <p className="text-base leading-relaxed text-blue-900 dark:text-blue-300">
+                      {explanation}
+                    </p>
                   </div>
                 </div>
               </div>
