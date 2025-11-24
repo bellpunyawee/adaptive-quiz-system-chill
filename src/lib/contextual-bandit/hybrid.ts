@@ -9,6 +9,11 @@
  * - Safety: IRT provides fallback when contextual model is uncertain
  * - Personalization: LinUCB adapts to individual learning patterns
  * - Gradual transition: Start with IRT, shift to LinUCB as model learns
+ *
+ * Weight Evolution (Bayesian-optimized):
+ * - Phase 1 (Q0-7): 40.3% → 70.8% LinUCB (conservative start, fast ramp-up)
+ * - Phase 2 (Q7-26): 70.8% → 87.1% LinUCB (gradual learning phase)
+ * - Phase 3 (Q26+): 87.1% → 97.0% LinUCB (sigma-adaptive, high confidence)
  */
 
 import { LinUCBModel } from './algorithms/linucb';
@@ -34,8 +39,8 @@ export interface HybridConfig {
   useAdaptiveWeights: boolean;   // Adjust weights based on confidence (default: true)
   linucbAlpha: number;           // LinUCB exploration parameter (default: 1.5)
   irtExplorationC: number;       // IRT UCB exploration constant (default: 1.0)
-  minLinucbWeight: number;       // Minimum LinUCB weight (default: 0.5)
-  maxLinucbWeight: number;       // Maximum LinUCB weight (default: 0.9)
+  minLinucbWeight: number;       // Minimum LinUCB weight (default: 0.403, optimized)
+  maxLinucbWeight: number;       // Maximum LinUCB weight (default: 0.970, optimized)
 }
 
 const DEFAULT_HYBRID_CONFIG: HybridConfig = {
@@ -44,8 +49,8 @@ const DEFAULT_HYBRID_CONFIG: HybridConfig = {
   useAdaptiveWeights: true,
   linucbAlpha: 1.5,
   irtExplorationC: 1.0,
-  minLinucbWeight: 0.5,
-  maxLinucbWeight: 0.9,
+  minLinucbWeight: 0.403,  // Optimized via Bayesian optimization (was 0.5)
+  maxLinucbWeight: 0.970,  // Optimized via Bayesian optimization (was 0.9)
 };
 
 /**
@@ -92,12 +97,49 @@ export function calculateHybridScore(
   let irtWeight = cfg.baseIrtWeight;
 
   if (cfg.useAdaptiveWeights) {
-    // Adjust weights based on LinUCB model confidence
-    // Higher confidence (lower sigma) → more weight on LinUCB
-    // Lower confidence (higher sigma) → more weight on IRT
-    const confidence = 1 / (1 + linucbPrediction.sigma);
+    // Use TOTAL selections (student progress) as primary driver
+    // totalSelections represents how many questions the student has answered
+    const studentProgress = totalSelections || 0;
 
-    linucbWeight = cfg.minLinucbWeight + (cfg.maxLinucbWeight - cfg.minLinucbWeight) * confidence;
+    // Allow parameter override from environment variables (for optimization)
+    const isOptimizationMode = process.env.HYBRID_OPTIMIZATION_MODE === 'true';
+    const initialWeight = isOptimizationMode && process.env.HYBRID_INITIAL_WEIGHT
+      ? parseFloat(process.env.HYBRID_INITIAL_WEIGHT)
+      : cfg.minLinucbWeight;
+    const phase1End = isOptimizationMode && process.env.HYBRID_PHASE1_END
+      ? parseInt(process.env.HYBRID_PHASE1_END)
+      : 7;  // Optimized via Bayesian optimization (was 10)
+    const phase2End = isOptimizationMode && process.env.HYBRID_PHASE2_END
+      ? parseInt(process.env.HYBRID_PHASE2_END)
+      : 26;  // Optimized via Bayesian optimization (was 20)
+    const phase1Target = isOptimizationMode && process.env.HYBRID_PHASE1_TARGET
+      ? parseFloat(process.env.HYBRID_PHASE1_TARGET)
+      : 0.708;  // Optimized via Bayesian optimization (was 0.65)
+    const phase2Target = isOptimizationMode && process.env.HYBRID_PHASE2_TARGET
+      ? parseFloat(process.env.HYBRID_PHASE2_TARGET)
+      : 0.871;  // Optimized via Bayesian optimization (was 0.85)
+    const maxWeight = isOptimizationMode && process.env.HYBRID_MAX_WEIGHT
+      ? parseFloat(process.env.HYBRID_MAX_WEIGHT)
+      : cfg.maxLinucbWeight;
+
+    // Phase-based weight evolution for proper ramp-up
+    if (studentProgress < phase1End) {
+      // Very early: trust IRT more
+      const progress = studentProgress / phase1End; // 0 to 1
+      linucbWeight = initialWeight + (phase1Target - initialWeight) * progress;
+    } else if (studentProgress < phase2End) {
+      // Learning phase: ramp up quickly
+      const progress = (studentProgress - phase1End) / (phase2End - phase1End); // 0 to 1
+      linucbWeight = phase1Target + (phase2Target - phase1Target) * progress;
+    } else {
+      // Confident phase: use sigma for fine-tuning
+      // Use exponential decay for less conservative sigma scaling
+      const sigmaBased = Math.exp(-linucbPrediction.sigma / 2);
+      // σ=0 → 1.0, σ=1 → 0.61, σ=2 → 0.37, σ=3 → 0.22
+
+      linucbWeight = phase2Target + (maxWeight - phase2Target) * sigmaBased;
+    }
+
     irtWeight = 1 - linucbWeight;
   }
 
