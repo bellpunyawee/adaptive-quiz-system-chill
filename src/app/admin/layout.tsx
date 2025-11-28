@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { handleSignOut } from "@/app/actions";
 import { Button } from "@/components/ui/button";
+import { Toaster } from "sonner";
 
 export default async function AdminLayout({
   children,
@@ -53,6 +54,7 @@ export default async function AdminLayout({
           {children}
         </main>
       </div>
+      <Toaster richColors position="top-right" />
     </div>
   );
 }

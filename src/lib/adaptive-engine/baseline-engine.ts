@@ -20,6 +20,9 @@ interface BaselineQuestion {
   difficulty_b: number;
   discrimination_a: number;
   answerOptions: Array<{ id: string; text: string }>;
+  imageUrl?: string | null;
+  explanation?: string | null;
+  bloomTaxonomy?: string | null;
 }
 
 interface BaselineProgress {
@@ -78,51 +81,55 @@ export async function selectBaselineQuestion(
 
   const QUESTIONS_PER_CELL = 3;
 
-  // Find first cell that hasn't reached 3 questions
+  // Find first cell that hasn't reached 3 questions AND has available baseline questions
   let targetCell: { id: string; name: string } | null = null;
+  let selectedQuestion: BaselineQuestion | null = null;
+
   for (const cell of cells) {
     const count = cellQuestionCounts.get(cell.id) || 0;
     if (count < QUESTIONS_PER_CELL) {
-      targetCell = cell;
-      break;
+      // Check if this cell has available baseline questions
+      const userMastery = await prisma.userCellMastery.findUnique({
+        where: {
+          userId_cellId: {
+            userId,
+            cellId: cell.id,
+          },
+        },
+      });
+
+      const currentAbility = userMastery?.ability_theta || 0;
+
+      // Try to select a question from this cell
+      const question = await selectQuestionForCell(
+        cell.id,
+        currentAbility,
+        answeredQuestionIds,
+        count
+      );
+
+      if (question) {
+        // Found a valid question for this cell
+        targetCell = cell;
+        selectedQuestion = question;
+        break;
+      } else {
+        // No baseline questions available for this cell, skip to next cell
+        console.warn(
+          `[Baseline] Skipping topic "${cell.name}" - no baseline questions available. ` +
+          `Please tag questions with "baseline" for this topic.`
+        );
+      }
     }
   }
 
-  // If all cells complete, baseline is done
-  if (!targetCell) {
+  // If no cells with available questions found, baseline is done
+  if (!targetCell || !selectedQuestion) {
+    console.log('[Baseline] All available baseline questions have been answered');
     return null;
   }
 
-  // Get user's current ability estimate for this cell
-  const userMastery = await prisma.userCellMastery.findUnique({
-    where: {
-      userId_cellId: {
-        userId,
-        cellId: targetCell.id,
-      },
-    },
-  });
-
-  const currentAbility = userMastery?.ability_theta || 0;
-  const questionsAnswered = cellQuestionCounts.get(targetCell.id) || 0;
-
-  // Select question adaptively within this cell
-  const question = await selectQuestionForCell(
-    targetCell.id,
-    currentAbility,
-    answeredQuestionIds,
-    questionsAnswered
-  );
-
-  if (!question) {
-    console.warn(`No available question found for cell ${targetCell.name}`);
-    return null;
-  }
-
-  return {
-    ...question,
-    cellName: targetCell.name,
-  };
+  return selectedQuestion;
 }
 
 /**
@@ -134,11 +141,18 @@ async function selectQuestionForCell(
   excludeQuestionIds: Set<string>,
   questionsAnsweredInCell: number
 ): Promise<BaselineQuestion | null> {
-  // Get all active questions in this cell
+  // Get all active questions in this cell tagged as baseline-eligible
   const questions = await prisma.question.findMany({
     where: {
       cellId,
       isActive: true,
+      tags: {
+        some: {
+          tag: {
+            name: 'baseline', // Only baseline-eligible questions
+          },
+        },
+      },
       id: {
         notIn: Array.from(excludeQuestionIds),
       },
@@ -159,6 +173,10 @@ async function selectQuestionForCell(
   });
 
   if (questions.length === 0) {
+    console.warn(
+      `[Baseline] No baseline-tagged questions found for cell ${cellId}. ` +
+      `Please tag questions with "baseline" for this topic.`
+    );
     return null;
   }
 
@@ -223,6 +241,9 @@ async function selectQuestionForCell(
     difficulty_b: selected.question.difficulty_b,
     discrimination_a: selected.question.discrimination_a,
     answerOptions: selected.question.answerOptions,
+    imageUrl: selected.question.imageUrl,
+    explanation: selected.question.explanation,
+    bloomTaxonomy: selected.question.bloomTaxonomy,
   };
 }
 

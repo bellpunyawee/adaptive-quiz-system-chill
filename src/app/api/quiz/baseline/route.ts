@@ -44,13 +44,38 @@ export async function POST() {
       },
     });
 
+    // Calculate max questions based on available baseline questions
+    const cells = await prisma.cell.findMany({ select: { id: true } });
+    const QUESTIONS_PER_CELL = 3;
+    let maxQuestions = 0;
+
+    for (const cell of cells) {
+      const count = await prisma.question.count({
+        where: {
+          cellId: cell.id,
+          isActive: true,
+          tags: {
+            some: {
+              tag: {
+                name: 'baseline',
+              },
+            },
+          },
+        },
+      });
+
+      if (count > 0) {
+        maxQuestions += Math.min(count, QUESTIONS_PER_CELL);
+      }
+    }
+
     // Create baseline quiz
     const quiz = await prisma.quiz.create({
       data: {
         userId,
         status: 'in-progress',
         quizType: 'baseline',
-        maxQuestions: 15, // 3 per topic × 5 topics
+        maxQuestions, // Calculated based on available baseline questions
         explorationParam: 0.5, // Balanced
         timerMinutes: null, // No timer for baseline
         topicSelection: 'system', // System-controlled

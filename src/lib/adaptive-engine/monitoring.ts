@@ -5,7 +5,7 @@ export interface EngineMetrics {
   timestamp: Date;
   userId: string;
   quizId: string;
-  eventType: 'question_selected' | 'answer_processed' | 'mastery_achieved' | 'quiz_completed' | 'error';
+  eventType: 'question_selected' | 'answer_processed' | 'question_skipped' | 'mastery_achieved' | 'quiz_completed' | 'error';
   data: Record<string, any>;
   duration?: number; // milliseconds
 }
@@ -93,6 +93,36 @@ class EngineMonitor {
         responseTime
       }
     });
+  }
+
+  /**
+   * Track question skip
+   */
+  trackQuestionSkipped(
+    userId: string,
+    quizId: string,
+    questionId: string,
+    cellId: string,
+    difficulty: number,
+    abilityAtTime?: number,
+    responseTime?: number,
+    skipReason?: string
+  ): void {
+    this.log({
+      userId,
+      quizId,
+      eventType: 'question_skipped',
+      data: {
+        questionId,
+        cellId,
+        difficulty,
+        abilityAtTime,
+        responseTime,
+        skipReason: skipReason || 'dont_know'
+      }
+    });
+
+    console.log(`⊘ [SKIP] User ${userId} skipped question ${questionId} (difficulty: ${difficulty.toFixed(2)}, ability: ${abilityAtTime?.toFixed(2) || 'N/A'})`);
   }
 
   /**

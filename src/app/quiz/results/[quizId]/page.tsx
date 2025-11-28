@@ -53,6 +53,7 @@ export default async function ResultsPage({ params }: PageProps) {
         select: {
             startedAt: true,
             completedAt: true,
+            quizType: true,
         },
     });
 
@@ -272,6 +273,7 @@ export default async function ResultsPage({ params }: PageProps) {
                                     isCorrect={answer.isCorrect}
                                     explanation={question.explanation}
                                     responseTime={answer.responseTime}
+                                    hideExplanation={quiz.quizType === 'baseline'}
                                 />
                             );
                         })}

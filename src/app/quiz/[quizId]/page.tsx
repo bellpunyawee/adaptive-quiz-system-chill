@@ -3,12 +3,13 @@
 
 import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { CheckCircle, XCircle, Loader2, X, Clock, AlertTriangle, Home, ChevronRight } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, X, Clock, AlertTriangle, Home, ChevronRight, Expand } from 'lucide-react';
 import { useStopwatch } from '@/hooks/use-stopwatch';
 import {
   AlertDialog,
@@ -21,10 +22,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface Question {
   id: string;
   text: string;
+  imageUrl?: string | null;
   options: { id: string; text: string }[];
   totalQuestions: number;
   answeredCount: number;
@@ -32,11 +40,15 @@ interface Question {
 
 interface Feedback {
   isCorrect: boolean;
+  wasSkipped?: boolean;
   correctOptionId: string;
+  correctAnswerText?: string;
+  userAnswerText?: string;
   explanation: string;
 }
 
 type QuizStatus = 'loading' | 'in-progress' | 'completed' | 'error';
+type QuizType = 'baseline' | 'practice' | 'practice-review' | 'practice-new' | 'review-mistakes';
 
 interface AnswerHistory {
   questionNumber: number;
@@ -46,11 +58,12 @@ interface AnswerHistory {
 export default function QuizPage({ params: paramsPromise }: { params: Promise<{ quizId: string }> }) {
   const params = use(paramsPromise);
   const router = useRouter();
-  
+
   const [question, setQuestion] = useState<Question | null>(null);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [quizStatus, setQuizStatus] = useState<QuizStatus>('loading');
+  const [quizType, setQuizType] = useState<QuizType | null>(null);
   const [answerHistory, setAnswerHistory] = useState<AnswerHistory[]>([]);
   const { time, stopTimer } = useStopwatch();
 
@@ -60,6 +73,13 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
 
   // Track when question was displayed for engagement metrics
   const [questionDisplayedAt, setQuestionDisplayedAt] = useState<number | null>(null);
+
+  // Skip functionality state
+  const [skipDialogOpen, setSkipDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Image lightbox state
+  const [imageLightboxOpen, setImageLightboxOpen] = useState(false);
 
   // Auto-redirect to results when quiz is completed
   useEffect(() => {
@@ -115,18 +135,19 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
     setFeedback(null);
     setSelectedOption(null);
     setQuizStatus('loading');
-    
+
     try {
       const res = await fetch(`/api/quiz/${params.quizId}`);
       if (!res.ok) throw new Error('Failed to fetch');
-      
+
       const data = await res.json();
-      
+
       if (data.status === 'completed') {
         setQuizStatus('completed');
         stopTimer();
       } else {
         setQuestion(data.question);
+        setQuizType(data.quizType);
         setQuizStatus('in-progress');
         setTimeUp(false);
       }
@@ -155,6 +176,7 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
     const responseTime = questionDisplayedAt ? Date.now() - questionDisplayedAt : null;
     const displayedAt = questionDisplayedAt ? new Date(questionDisplayedAt).toISOString() : null;
 
+    setIsSubmitting(true);
     try {
       const res = await fetch(`/api/quiz/${params.quizId}`, {
         method: 'POST',
@@ -170,13 +192,51 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
 
       const feedbackData = await res.json();
       setFeedback(feedbackData);
-      
+
       setAnswerHistory([...answerHistory, {
         questionNumber: question.answeredCount + 1,
         isCorrect: feedbackData.isCorrect
       }]);
     } catch (error) {
       console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSkipConfirm = async () => {
+    if (!question) return;
+
+    const responseTime = questionDisplayedAt ? Date.now() - questionDisplayedAt : null;
+    const displayedAt = questionDisplayedAt ? new Date(questionDisplayedAt).toISOString() : null;
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/quiz/${params.quizId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questionId: question.id,
+          selectedOptionId: null,
+          wasSkipped: true,
+          responseTime: responseTime,
+          questionDisplayedAt: displayedAt,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to skip question');
+
+      const feedbackData = await res.json();
+      setFeedback(feedbackData);
+
+      setAnswerHistory([...answerHistory, {
+        questionNumber: question.answeredCount + 1,
+        isCorrect: false // Skipped questions count as incorrect in history
+      }]);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+      setSkipDialogOpen(false);
     }
   };
 
@@ -354,9 +414,32 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
         <Card className="transition-all hover:shadow-md">
           <CardHeader>
             <CardTitle>Question {question ? question.answeredCount + 1 : '...'}</CardTitle>
-            <CardDescription className="pt-2 text-base leading-relaxed">
+            <CardDescription className="pt-4 text-lg leading-relaxed font-medium text-foreground">
               {question?.text}
             </CardDescription>
+            {question?.imageUrl && (
+              <div
+                className="relative w-full h-80 mt-6 mb-2 rounded-lg overflow-hidden bg-muted border cursor-pointer hover:shadow-lg transition-shadow group"
+                onClick={() => setImageLightboxOpen(true)}
+                title="Click to view full-screen"
+              >
+                <Image
+                  src={question.imageUrl}
+                  alt="Question illustration"
+                  fill
+                  className="object-contain group-hover:scale-105 transition-transform duration-200"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  unoptimized={true}
+                  priority
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors">
+                  <div className="bg-white/90 dark:bg-black/90 px-3 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium flex items-center gap-2">
+                    <Expand className="h-4 w-4" />
+                    Click to enlarge
+                  </div>
+                </div>
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit}>
@@ -383,7 +466,7 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
                     `}
                   >
                     <RadioGroupItem value={option.id} id={option.id} />
-                    <span className="flex-1">{option.text}</span>
+                    <span className="flex-1 text-base">{option.text}</span>
                     {feedback && option.id === feedback.correctOptionId && (
                       <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
                     )}
@@ -396,29 +479,44 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
 
               {feedback && (
                 <div className={`mt-6 p-6 rounded-lg border-2 animate-in slide-in-from-top duration-300 shadow-md ${
-                  feedback.isCorrect
+                  feedback.wasSkipped
+                    ? 'bg-muted border-muted-foreground/20'
+                    : feedback.isCorrect
                     ? 'bg-green-50 border-green-300 dark:bg-green-950 dark:border-green-700'
                     : 'bg-red-50 border-red-300 dark:bg-red-950 dark:border-red-700'
                 }`}>
                   <div className="flex items-center gap-3 mb-4">
                     <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                      feedback.isCorrect
+                      feedback.wasSkipped
+                        ? 'bg-muted-foreground/50'
+                        : feedback.isCorrect
                         ? 'bg-green-500 dark:bg-green-600'
                         : 'bg-red-500 dark:bg-red-600'
                     }`}>
                       <span className="text-white text-2xl font-bold">
-                        {feedback.isCorrect ? '✓' : '✗'}
+                        {feedback.wasSkipped ? '⊘' : feedback.isCorrect ? '✓' : '✗'}
                       </span>
                     </div>
                     <p className={`font-bold text-xl ${
-                      feedback.isCorrect ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'
+                      feedback.wasSkipped
+                        ? 'text-muted-foreground'
+                        : feedback.isCorrect
+                        ? 'text-green-800 dark:text-green-200'
+                        : 'text-red-800 dark:text-red-200'
                     }`}>
-                      {feedback.isCorrect ? 'Correct!' : 'Incorrect'}
+                      {feedback.wasSkipped ? 'Skipped' : feedback.isCorrect ? 'Correct!' : 'Incorrect'}
                     </p>
                   </div>
-                  {feedback.explanation && (
+                  {feedback.wasSkipped && (
+                    <p className="text-sm text-muted-foreground mb-4">
+                      No worries! {quizType !== 'baseline' ? "Here's the correct answer:" : "Moving on to the next question."}
+                    </p>
+                  )}
+                  {feedback.explanation && quizType !== 'baseline' && (
                     <div className={`p-5 rounded-md border-l-4 ${
-                      feedback.isCorrect
+                      feedback.wasSkipped
+                        ? 'bg-background dark:bg-muted/20 border-muted-foreground'
+                        : feedback.isCorrect
                         ? 'bg-white dark:bg-green-900/20 border-green-500'
                         : 'bg-white dark:bg-red-900/20 border-red-500'
                     }`}>
@@ -435,9 +533,49 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
 
               <div className="mt-6 flex gap-3">
                 {!feedback ? (
-                  <Button type="submit" disabled={!selectedOption} className="flex-1 transition-all">
-                    Submit Answer
-                  </Button>
+                  <>
+                    <Button
+                      type="submit"
+                      disabled={!selectedOption || isSubmitting}
+                      className="flex-1 transition-all"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        'Submit Answer'
+                      )}
+                    </Button>
+
+                    <AlertDialog open={skipDialogOpen} onOpenChange={setSkipDialogOpen}>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={isSubmitting}
+                          className="flex-1 text-muted-foreground hover:text-foreground transition-all"
+                        >
+                          I Don&apos;t Know
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Skip this question?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            You can skip this question if you&apos;re unsure. This will be recorded as an incorrect answer for your progress tracking, but there&apos;s no additional penalty.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Go Back</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleSkipConfirm}>
+                            Yes, Skip Question
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
                 ) : (
                   <Button type="button" onClick={fetchNextQuestion} className="flex-1 transition-all">
                     Next Question →
@@ -447,6 +585,28 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
             </form>
           </CardContent>
         </Card>
+
+        {/* Image Lightbox Modal */}
+        {question?.imageUrl && (
+          <Dialog open={imageLightboxOpen} onOpenChange={setImageLightboxOpen}>
+            <DialogContent className="max-w-[95vw] max-h-[95vh] p-0">
+              <DialogHeader className="px-6 pt-6 pb-2">
+                <DialogTitle>Question {question.answeredCount + 1} - Image</DialogTitle>
+              </DialogHeader>
+              <div className="relative w-full h-[80vh] px-6 pb-6">
+                <Image
+                  src={question.imageUrl}
+                  alt="Question illustration - full screen"
+                  fill
+                  className="object-contain"
+                  sizes="95vw"
+                  unoptimized={true}
+                  priority
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   );

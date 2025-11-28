@@ -1,0 +1,21 @@
+# INSTRUCTIONS:
+# - question_text: The full question text (required)
+# - topic_name: Must match existing topic. Available: Confidence Interval, Hypothesis Testing, Level of measurement, Object-Oriented Programming, Probability Distributions, Python Basics, Python Control Flow, Python Data Structures, Python Functions, Regression Analysis
+# - option_1 to option_5: Answer choices. Options 1-4 required, 5 optional
+# - correct_option: Number of correct option (1-5)
+# - explanation: Detailed explanation
+# - bloom_taxonomy: Remember, Understand, Apply, Analyze, Evaluate, or Create
+# - tags: Comma-separated. Available: advanced, baseline, beginner-friendly, conceptual, debugging, diagnostic, practical, summative, tricky
+# - image_filename: Optional. Include in ZIP with images/ folder
+# - Delete these instruction rows before uploading
+
+question_text,topic_name,option_1,option_2,option_3,option_4,option_5,correct_option,explanation,bloom_taxonomy,tags,image_filename
+What is the output of print(2 ** 3)?,Python Basics,5,6,8,9,,3,"The ** operator performs exponentiation. 2 ** 3 means 2 raised to the power of 3, which equals 8.",Remember,"baseline,beginner-friendly",
+Which method adds an element to the end of a list?,Python Data Structures,add(),append(),insert(),extend(),push(),2,The append() method adds a single element to the end of a list.,Remember,"baseline,conceptual",
+
+# Add your questions below:
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,,,
