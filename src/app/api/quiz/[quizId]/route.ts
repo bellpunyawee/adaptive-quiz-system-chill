@@ -141,9 +141,14 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { questionId, selectedOptionId, responseTime, questionDisplayedAt } = body;
+    const { questionId, selectedOptionId, responseTime, questionDisplayedAt, wasSkipped } = body;
 
-    if (!questionId || !selectedOptionId) {
+    if (!questionId) {
+      return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
+    }
+
+    // Allow null selectedOptionId only if wasSkipped is true
+    if (!selectedOptionId && !wasSkipped) {
       return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
     }
 
@@ -167,19 +172,27 @@ export async function POST(req: Request) {
 
     if (existingAnswer) {
       console.log(`[API] Duplicate submission detected for question ${questionId}, returning existing answer`);
-      
-      // Return the existing feedback instead of creating duplicate
-      const correctOption = await prisma.answerOption.findFirst({
-        where: { questionId: questionId, isCorrect: true },
-      });
 
-      const question = await prisma.question.findUnique({
-        where: { id: questionId }
-      });
+      // Return the existing feedback instead of creating duplicate
+      const [correctOption, question, selectedAnswer] = await Promise.all([
+        prisma.answerOption.findFirst({
+          where: { questionId: questionId, isCorrect: true },
+        }),
+        prisma.question.findUnique({
+          where: { id: questionId }
+        }),
+        existingAnswer.selectedOptionId ? prisma.answerOption.findUnique({
+          where: { id: existingAnswer.selectedOptionId },
+          select: { text: true }
+        }) : null
+      ]);
 
       return NextResponse.json({
         isCorrect: existingAnswer.isCorrect,
+        wasSkipped: existingAnswer.wasSkipped,
         correctOptionId: correctOption?.id || '',
+        correctAnswerText: correctOption?.text || '',
+        userAnswerText: existingAnswer.wasSkipped ? 'Skipped' : (selectedAnswer?.text || ''),
         explanation: question?.explanation || 'No explanation available.',
       });
     }
@@ -199,7 +212,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Question configuration error.' }, { status: 500 });
     }
 
-    const isCorrect = selectedOptionId === correctOption.id;
+    // Handle skip: treat as incorrect
+    const isCorrect = wasSkipped ? false : (selectedOptionId === correctOption.id);
 
     // Record the answer (with abilityAtTime for tracking)
     const userMastery = await prisma.userCellMastery.findUnique({
@@ -216,8 +230,10 @@ export async function POST(req: Request) {
         userId: session.user.id,
         quizId: quizId,
         questionId: questionId,
-        selectedOptionId: selectedOptionId,
+        selectedOptionId: wasSkipped ? null : selectedOptionId,
         isCorrect: isCorrect,
+        wasSkipped: wasSkipped || false,
+        skipReason: wasSkipped ? 'dont_know' : null,
         abilityAtTime: userMastery?.ability_theta || 0,
         responseTime: validatedResponseTime,
         questionDisplayedAt: questionDisplayedAt ? new Date(questionDisplayedAt) : null,
@@ -243,13 +259,23 @@ export async function POST(req: Request) {
       session.user.id,
       quizId,
       questionId,
-      selectedOptionId
+      wasSkipped ? '' : selectedOptionId, // Pass empty string for skipped (won't be used)
+      wasSkipped
     );
+
+    // Get the selected answer text for feedback
+    const selectedAnswer = wasSkipped ? null : await prisma.answerOption.findUnique({
+      where: { id: selectedOptionId },
+      select: { text: true }
+    });
 
     // Return feedback with explanation
     return NextResponse.json({
       isCorrect: isCorrect,
+      wasSkipped: wasSkipped || false,
       correctOptionId: correctOption.id,
+      correctAnswerText: correctOption.text,
+      userAnswerText: wasSkipped ? 'Skipped' : (selectedAnswer?.text || ''),
       explanation: question.explanation || 'No explanation available.',
     });
 

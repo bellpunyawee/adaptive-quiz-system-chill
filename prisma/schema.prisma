@@ -50,6 +50,8 @@ model Question {
   id               String         @id @default(cuid())
   text             String
   explanation      String?
+  imageUrl         String?        // Optional image for question (Vercel Blob URL)
+  bloomTaxonomy    String?        // Bloom's Taxonomy level: Remember, Understand, Apply, Analyze, Evaluate, Create
   cellId           String
   cell             Cell           @relation(fields: [cellId], references: [id])
 
@@ -79,6 +81,7 @@ model Question {
   answerOptions    AnswerOption[]
   userAnswers      UserAnswer[]
   reviews          QuestionReview[]
+  tags             QuestionTag[]                    // Many-to-many with tags
 
   @@index([cellId, isActive])
   @@index([exposureCount])
@@ -148,11 +151,15 @@ model UserAnswer {
   quiz             Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   questionId       String
   question         Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  selectedOptionId String
+  selectedOptionId String?  // Nullable for skipped questions
   isCorrect        Boolean
   createdAt        DateTime @default(now())
   userId           String
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Skip tracking
+  wasSkipped       Boolean  @default(false)
+  skipReason       String?  @default("dont_know") // For analytics
 
   responseTime        Int?      // Time taken to answer in milliseconds
   abilityAtTime       Float?    // User's ability estimate when question was answered
@@ -308,4 +315,33 @@ model DecisionSnapshot {
   @@index([questionId])
   @@index([timestamp])
   @@index([algorithm])
+}
+
+// Tag System for Question Categorization
+
+model Tag {
+  id          String        @id @default(cuid())
+  name        String        @unique        // Unique tag name (e.g., "baseline", "advanced")
+  description String?                      // Optional description
+  color       String?                      // Hex color for UI display (e.g., "#FCD34D")
+  category    String?                      // Tag category (e.g., "assessment_type", "difficulty_level")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  questions   QuestionTag[]                // Many-to-many with questions
+
+  @@index([category])
+}
+
+model QuestionTag {
+  questionId String
+  tagId      String
+  createdAt  DateTime @default(now())
+
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, tagId])
+  @@index([tagId])
+  @@index([questionId])
 }

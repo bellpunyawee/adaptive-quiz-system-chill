@@ -435,7 +435,8 @@ export async function processUserAnswer(
   userId: string,
   quizId: string,
   questionId: string,
-  selectedOptionId: string
+  selectedOptionId: string,
+  wasSkipped?: boolean
 ): Promise<{
   isCorrect: boolean;
   abilityUpdate: {
@@ -446,12 +447,12 @@ export async function processUserAnswer(
   } | null;
 }> {
   const timer = new PerformanceTimer();
-  console.log(`[ENGINE] Processing answer for question ${questionId}`);
+  console.log(`[ENGINE] Processing answer for question ${questionId}${wasSkipped ? ' (SKIPPED)' : ''}`);
 
   // Get question and check correctness
   const question = await prisma.question.findUnique({
     where: { id: questionId },
-    include: { 
+    include: {
       answerOptions: true,
       cell: true
     }
@@ -461,12 +462,17 @@ export async function processUserAnswer(
     throw new Error(`Question ${questionId} not found`);
   }
 
-  const selectedOption = question.answerOptions.find(opt => opt.id === selectedOptionId);
-  if (!selectedOption) {
-    throw new Error(`Answer option ${selectedOptionId} not found`);
+  // Handle skip case
+  let isCorrect: boolean;
+  if (wasSkipped) {
+    isCorrect = false; // Skips are treated as incorrect
+  } else {
+    const selectedOption = question.answerOptions.find(opt => opt.id === selectedOptionId);
+    if (!selectedOption) {
+      throw new Error(`Answer option ${selectedOptionId} not found`);
+    }
+    isCorrect = selectedOption.isCorrect;
   }
-
-  const isCorrect = selectedOption.isCorrect;
 
   // Get or create user's mastery record for this cell
   let mastery = await prisma.userCellMastery.findUnique({
@@ -573,6 +579,20 @@ export async function processUserAnswer(
     isCorrect,
     timer.elapsed()
   );
+
+  // Track skip if applicable
+  if (wasSkipped) {
+    engineMonitor.trackQuestionSkipped(
+      userId,
+      quizId,
+      questionId,
+      question.cellId,
+      question.difficulty_b,
+      oldTheta,
+      timer.elapsed(),
+      'dont_know'
+    );
+  }
 
   console.log(`[ENGINE] Answer processing completed in ${timer.elapsed()}ms`);
 

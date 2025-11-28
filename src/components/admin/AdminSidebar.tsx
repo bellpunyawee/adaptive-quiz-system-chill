@@ -12,7 +12,9 @@ import {
   FileText,
   BarChart3,
   Menu,
-  X
+  X,
+  FileQuestion,
+  Tags
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
@@ -31,6 +33,16 @@ const navigation = [
     name: 'Dashboard',
     href: '/admin',
     icon: LayoutDashboard,
+  },
+  {
+    name: 'Questions',
+    href: '/admin/questions',
+    icon: FileQuestion,
+  },
+  {
+    name: 'Tags',
+    href: '/admin/tags',
+    icon: Tags,
   },
   {
     name: 'System Health',

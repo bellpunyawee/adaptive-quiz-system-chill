@@ -1,17 +1,55 @@
 // src/app/baseline-intro/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Clock, Target, TrendingUp, CheckCircle2, Brain } from 'lucide-react';
+import { ArrowLeft, Clock, Target, TrendingUp, CheckCircle2, Brain, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+
+interface BaselineStats {
+  totalTopics: number;
+  topicsWithBaseline: number;
+  totalBaselineQuestions: number;
+  expectedQuizLength: number;
+  questionsPerTopic: number;
+  estimatedTimeMinutes: number;
+  topics: Array<{
+    id: string;
+    name: string;
+    totalQuestions: number;
+    willUse: number;
+    hasEnough: boolean;
+  }>;
+}
 
 export default function BaselineIntroPage() {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<BaselineStats | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  // Fetch baseline statistics
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const response = await fetch('/api/quiz/baseline/stats');
+        if (response.ok) {
+          const data = await response.json();
+          setStats(data);
+        } else {
+          console.error('Failed to fetch baseline stats');
+        }
+      } catch (error) {
+        console.error('Error fetching baseline stats:', error);
+      } finally {
+        setIsLoadingStats(false);
+      }
+    }
+    fetchStats();
+  }, []);
 
   const handleStartBaseline = async () => {
     setIsStarting(true);
@@ -61,29 +99,45 @@ export default function BaselineIntroPage() {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <Clock className="h-8 w-8 mx-auto mb-2 text-primary" />
-              <p className="text-2xl font-bold">10-15 min</p>
-              <p className="text-sm text-muted-foreground">Estimated time</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <Target className="h-8 w-8 mx-auto mb-2 text-primary" />
-              <p className="text-2xl font-bold">15 Questions</p>
-              <p className="text-sm text-muted-foreground">Adaptive assessment</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <TrendingUp className="h-8 w-8 mx-auto mb-2 text-primary" />
-              <p className="text-2xl font-bold">8 Topics</p>
-              <p className="text-sm text-muted-foreground">Predictive Analytics</p>
-            </CardContent>
-          </Card>
-        </div>
+        {isLoadingStats ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <Clock className="h-8 w-8 mx-auto mb-2 text-primary" />
+                <p className="text-2xl font-bold">
+                  {stats?.estimatedTimeMinutes ? `~${stats.estimatedTimeMinutes} min` : 'N/A'}
+                </p>
+                <p className="text-sm text-muted-foreground">Estimated time</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <Target className="h-8 w-8 mx-auto mb-2 text-primary" />
+                <p className="text-2xl font-bold">
+                  {stats?.expectedQuizLength || 0} Questions
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {stats?.questionsPerTopic || 3} per topic
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <TrendingUp className="h-8 w-8 mx-auto mb-2 text-primary" />
+                <p className="text-2xl font-bold">
+                  {stats?.topicsWithBaseline || 0} Topics
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {stats?.totalBaselineQuestions || 0} total questions
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Main Content */}
         <div className="space-y-6">
@@ -107,7 +161,7 @@ export default function BaselineIntroPage() {
                   <div>
                     <p className="font-medium">Your Current Skill Level</p>
                     <p className="text-sm text-muted-foreground">
-                      Understand your proficiency across Python, ML algorithms, time series, and more
+                      Understand your proficiency across {stats?.topicsWithBaseline || 'multiple'} different topics
                     </p>
                   </div>
                 </li>
@@ -187,7 +241,11 @@ export default function BaselineIntroPage() {
                   <div>
                     <p className="font-medium">Cover All Topics</p>
                     <p className="text-sm text-muted-foreground">
-                      Questions span 8 topics: Python, preprocessing, classification, regression, time series, evaluation, ensemble methods, and applications
+                      {stats?.topics && stats.topics.length > 0 ? (
+                        <>Questions span {stats.topicsWithBaseline} topics: {stats.topics.map(t => t.name).join(', ')}</>
+                      ) : (
+                        'Questions will cover multiple topics from your curriculum'
+                      )}
                     </p>
                   </div>
                 </div>

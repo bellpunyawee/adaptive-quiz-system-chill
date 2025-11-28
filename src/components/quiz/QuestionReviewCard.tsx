@@ -16,6 +16,7 @@ interface QuestionReviewCardProps {
   isCorrect: boolean;
   explanation: string | null;
   responseTime?: number | null;
+  hideExplanation?: boolean;
 }
 
 export function QuestionReviewCard({
@@ -29,6 +30,7 @@ export function QuestionReviewCard({
   isCorrect,
   explanation,
   responseTime,
+  hideExplanation = false,
 }: QuestionReviewCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -142,7 +144,7 @@ export function QuestionReviewCard({
             </div>
 
             {/* Explanation - Enhanced */}
-            {explanation && (
+            {explanation && !hideExplanation && (
               <div className="bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-300 dark:border-blue-800 rounded-lg p-5 shadow-sm">
                 <div className="flex items-start gap-3">
                   <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500 dark:bg-blue-600 flex-shrink-0 mt-0.5">
