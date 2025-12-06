@@ -143,5 +143,3 @@ With admin access configured, you can now:
 See [ADMIN_SECURITY_SETUP.md](ADMIN_SECURITY_SETUP.md) for detailed documentation.
 
 ---
-
-**Need Help?** Check [SPRINT_1_COMPLETE.md](SPRINT_1_COMPLETE.md) for full implementation details.

@@ -93,9 +93,9 @@ export default function BaselineIntroPage() {
             <Brain className="h-8 w-8 text-primary" />
           </div>
           <h1 className="text-4xl font-bold tracking-tight">Baseline Assessment</h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          {/* <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Help us understand your current knowledge to personalize your learning experience
-          </p>
+          </p> */}
         </div>
 
         {/* Quick Stats */}
@@ -203,7 +203,7 @@ export default function BaselineIntroPage() {
           </Card>
 
           {/* How It Works */}
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle>How It Works</CardTitle>
               <CardDescription>
@@ -262,7 +262,7 @@ export default function BaselineIntroPage() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* What to Expect */}
           <Card className="border-primary/20 bg-primary/5">

@@ -1,5 +1,12 @@
 import prisma from "@/lib/db";
 import { calculateKullbackLeiblerInformation } from "./irt-estimator";
+import {
+  getConfig as getConvergenceConfig,
+  shouldUseDistributionAwareConvergence,
+  getAdaptiveSEMThreshold,
+  getOptimalDifficultyRange,
+  type DistributionAwareConvergenceConfig,
+} from "./convergence-config";
 
 export interface StoppingConfig {
   minQuestions: number;
@@ -191,6 +198,258 @@ async function checkMinimumInformationRule(
 }
 
 /**
+ * Check if difficulty-specific question pool is exhausted
+ *
+ * Distribution-aware exhaustion detection: checks if optimal difficulty range
+ * for current theta has sufficient questions available.
+ *
+ * Part of Phase 3 solution for U-shaped pool distribution (68.7% at extremes).
+ *
+ * @param userId - User ID
+ * @param quizId - Quiz ID
+ * @param cellId - Cell (topic) ID
+ * @param currentTheta - Current ability estimate
+ * @param config - Convergence configuration
+ * @returns Exhaustion check result
+ */
+async function checkDifficultyRangeExhaustion(
+  userId: string,
+  quizId: string,
+  cellId: string,
+  currentTheta: number,
+  config: DistributionAwareConvergenceConfig
+): Promise<{
+  isExhausted: boolean;
+  availableCount: number;
+  optimalRange: { minDifficulty: number; maxDifficulty: number };
+  allAvailableCount: number;
+}> {
+  // Calculate optimal difficulty range based on theta
+  const optimalRange = getOptimalDifficultyRange(currentTheta);
+
+  console.log(
+    `[EXHAUSTION] Checking pool for cell ${cellId}, θ=${currentTheta.toFixed(2)}, ` +
+    `optimal range: [${optimalRange.minDifficulty.toFixed(2)}, ${optimalRange.maxDifficulty.toFixed(2)}]`
+  );
+
+  // Query questions in optimal difficulty range
+  const questionsInRange = await prisma.question.findMany({
+    where: {
+      cellId,
+      isActive: true,
+      difficulty_b: {
+        gte: optimalRange.minDifficulty,
+        lte: optimalRange.maxDifficulty,
+      },
+      userAnswers: {
+        none: {
+          userId,
+          quizId,
+        },
+      },
+    },
+  });
+
+  // Also get total available questions (for rescue logic)
+  const allAvailableQuestions = await prisma.question.findMany({
+    where: {
+      cellId,
+      isActive: true,
+      userAnswers: {
+        none: {
+          userId,
+          quizId,
+        },
+      },
+    },
+  });
+
+  const availableCount = questionsInRange.length;
+  const allAvailableCount = allAvailableQuestions.length;
+  const threshold = config.poolExhaustion.minQuestionsThreshold;
+  const isExhausted = availableCount < threshold;
+
+  console.log(
+    `[EXHAUSTION] Available in optimal range: ${availableCount}, ` +
+    `all available: ${allAvailableCount}, ` +
+    `threshold: ${threshold}, ` +
+    `exhausted: ${isExhausted ? 'YES' : 'NO'}`
+  );
+
+  return {
+    isExhausted,
+    availableCount,
+    optimalRange,
+    allAvailableCount,
+  };
+}
+
+/**
+ * Execute rescue logic when pool exhaustion detected
+ *
+ * 4-step graceful degradation cascade:
+ * 1. Relax difficulty range to ±0.75 (from ±0.5)
+ * 2. Relax further to ±1.0
+ * 3. Relax SEM threshold by +0.1
+ * 4. Hard stop (mark cell complete)
+ *
+ * Philosophy: Gathering imperfect data > gathering no data
+ * IRT is robust to moderate difficulty mismatch.
+ *
+ * @param userId - User ID
+ * @param quizId - Quiz ID
+ * @param cellId - Cell ID
+ * @param currentTheta - Current ability estimate
+ * @param exhaustionInfo - Result from checkDifficultyRangeExhaustion
+ * @param currentSEMThreshold - Current SEM threshold
+ * @param config - Convergence configuration
+ * @returns Rescue action decision
+ */
+async function executeRescueLogic(
+  userId: string,
+  quizId: string,
+  cellId: string,
+  currentTheta: number,
+  exhaustionInfo: {
+    isExhausted: boolean;
+    availableCount: number;
+    optimalRange: { minDifficulty: number; maxDifficulty: number };
+    allAvailableCount: number;
+  },
+  currentSEMThreshold: number,
+  config: DistributionAwareConvergenceConfig
+): Promise<{
+  action: 'continue' | 'stop';
+  reason: string;
+  adjustedRange?: { minDifficulty: number; maxDifficulty: number };
+  adjustedSEMThreshold?: number;
+  degradationStep?: number;
+}> {
+  const threshold = config.poolExhaustion.minQuestionsThreshold;
+  const verbose = config.rescue.logVerbose;
+
+  console.log(`[RESCUE] Initiating rescue logic for cell ${cellId}, θ=${currentTheta.toFixed(2)}`);
+
+  // Step 1: Relax to ±0.75 (width multiplier 1.5)
+  const step1Width = config.rescue.degradationSteps[0] || 1.5;
+  const step1Range = getOptimalDifficultyRange(currentTheta, step1Width);
+
+  const step1Questions = await prisma.question.findMany({
+    where: {
+      cellId,
+      isActive: true,
+      difficulty_b: {
+        gte: step1Range.minDifficulty,
+        lte: step1Range.maxDifficulty,
+      },
+      userAnswers: {
+        none: {
+          userId,
+          quizId,
+        },
+      },
+    },
+  });
+
+  if (step1Questions.length >= threshold) {
+    console.log(
+      `[RESCUE] Step 1 SUCCESS: Found ${step1Questions.length} questions in relaxed range ` +
+      `[${step1Range.minDifficulty.toFixed(2)}, ${step1Range.maxDifficulty.toFixed(2)}] (±${step1Width / 2})`
+    );
+    return {
+      action: 'continue',
+      reason: 'rescue_step1_relaxed_difficulty',
+      adjustedRange: step1Range,
+      degradationStep: 1,
+    };
+  }
+
+  if (verbose) {
+    console.log(
+      `[RESCUE] Step 1 FAILED: Only ${step1Questions.length} questions in ±${step1Width / 2} range, ` +
+      `need ${threshold}`
+    );
+  }
+
+  // Step 2: Relax further to ±1.0 (width multiplier 2.0)
+  const step2Width = config.rescue.degradationSteps[1] || 2.0;
+  const step2Range = getOptimalDifficultyRange(currentTheta, step2Width);
+
+  const step2Questions = await prisma.question.findMany({
+    where: {
+      cellId,
+      isActive: true,
+      difficulty_b: {
+        gte: step2Range.minDifficulty,
+        lte: step2Range.maxDifficulty,
+      },
+      userAnswers: {
+        none: {
+          userId,
+          quizId,
+        },
+      },
+    },
+  });
+
+  if (step2Questions.length >= threshold) {
+    console.log(
+      `[RESCUE] Step 2 SUCCESS: Found ${step2Questions.length} questions in further relaxed range ` +
+      `[${step2Range.minDifficulty.toFixed(2)}, ${step2Range.maxDifficulty.toFixed(2)}] (±${step2Width / 2})`
+    );
+    return {
+      action: 'continue',
+      reason: 'rescue_step2_relaxed_further',
+      adjustedRange: step2Range,
+      degradationStep: 2,
+    };
+  }
+
+  if (verbose) {
+    console.log(
+      `[RESCUE] Step 2 FAILED: Only ${step2Questions.length} questions in ±${step2Width / 2} range, ` +
+      `need ${threshold}`
+    );
+  }
+
+  // Step 3: Relax SEM threshold (accept lower precision)
+  if (exhaustionInfo.allAvailableCount >= threshold) {
+    const adjustedSEM = currentSEMThreshold + config.rescue.semRelaxation;
+    console.log(
+      `[RESCUE] Step 3 SUCCESS: Relaxing SEM threshold from ${currentSEMThreshold.toFixed(3)} ` +
+      `to ${adjustedSEM.toFixed(3)} (+${config.rescue.semRelaxation}). ` +
+      `${exhaustionInfo.allAvailableCount} questions available (any difficulty)`
+    );
+    return {
+      action: 'continue',
+      reason: 'rescue_step3_relaxed_sem',
+      adjustedSEMThreshold: adjustedSEM,
+      degradationStep: 3,
+    };
+  }
+
+  if (verbose) {
+    console.log(
+      `[RESCUE] Step 3 FAILED: Only ${exhaustionInfo.allAvailableCount} total questions available, ` +
+      `need ${threshold}`
+    );
+  }
+
+  // Step 4: Hard stop (pool completely exhausted)
+  console.log(
+    `[RESCUE] Step 4: Pool completely exhausted for cell ${cellId}. ` +
+    `Marking cell as complete. ` +
+    `Only ${exhaustionInfo.allAvailableCount} questions remain.`
+  );
+
+  return {
+    action: 'stop',
+    reason: 'pool_completely_exhausted',
+    degradationStep: 4,
+  };
+}
+
+/**
  * Calculate total Kullback-Leibler Information
  */
 export async function calculateTotalInformation(
@@ -252,11 +511,20 @@ export async function shouldStopQuiz(
     totalCells: number;
   };
 }> {
-  
+
+  // ===== CHECK DISTRIBUTION-AWARE CONVERGENCE FEATURE FLAG =====
+  const useDistributionAware = shouldUseDistributionAwareConvergence(userId);
+  const convergenceConfig = useDistributionAware ? getConvergenceConfig() : null;
+
+  console.log(
+    `[STOPPING] Distribution-Aware Convergence: ${useDistributionAware ? 'ENABLED' : 'DISABLED'}` +
+    (useDistributionAware ? ` (Traffic: ${convergenceConfig!.trafficAllocation}%)` : '')
+  );
+
   // ===== FETCH QUIZ SETTINGS FOR MAX QUESTIONS =====
   const quiz = await prisma.quiz.findUnique({
     where: { id: quizId },
-    select: { maxQuestions: true }
+    select: { maxQuestions: true, quizType: true }
   });
 
   // Use quiz-specific max questions if available, otherwise use config default
@@ -327,8 +595,32 @@ export async function shouldStopQuiz(
     ? semValues.reduce((sum: number, sem: number) => sum + sem, 0) / semValues.length
     : Infinity;
 
+  // ===== CALCULATE EFFECTIVE TARGET SEM (ADAPTIVE IF ENABLED) =====
+  let effectiveTargetSEM = config.targetSEM;
+
+  if (useDistributionAware && convergenceConfig) {
+    // Calculate weighted average of adaptive thresholds across active cells
+    const activeMasteries = await prisma.userCellMastery.findMany({
+      where: { userId, mastery_status: 0 }
+    });
+
+    if (activeMasteries.length > 0) {
+      const quizType = quiz?.quizType || 'regular';
+      const adaptiveThresholds = activeMasteries.map(m =>
+        getAdaptiveSEMThreshold(m.ability_theta, quizType)
+      );
+      effectiveTargetSEM =
+        adaptiveThresholds.reduce((sum, t) => sum + t, 0) / adaptiveThresholds.length;
+
+      console.log(
+        `[STOPPING] Using adaptive SEM threshold: ${effectiveTargetSEM.toFixed(3)} ` +
+        `(vs fixed: ${config.targetSEM.toFixed(3)})`
+      );
+    }
+  }
+
   // Check if precision target is met
-  if (averageSEM <= config.targetSEM) {
+  if (averageSEM <= effectiveTargetSEM) {
     // Before stopping, check PSER if enabled
     if (config.enablePSER && config.pserThreshold) {
       // Get active cells (not mastered) to check
@@ -381,6 +673,76 @@ export async function shouldStopQuiz(
         totalCells: allCells
       }
     };
+  }
+
+  // ===== POOL EXHAUSTION CHECK (DISTRIBUTION-AWARE CONVERGENCE) =====
+  if (useDistributionAware && convergenceConfig?.poolExhaustion.enableDetection) {
+    const activeMasteries = await prisma.userCellMastery.findMany({
+      where: {
+        userId,
+        mastery_status: 0
+      }
+    });
+
+    for (const mastery of activeMasteries) {
+      const exhaustionCheck = await checkDifficultyRangeExhaustion(
+        userId,
+        quizId,
+        mastery.cellId,
+        mastery.ability_theta,
+        convergenceConfig
+      );
+
+      if (exhaustionCheck.isExhausted) {
+        console.log(
+          `[STOPPING] Pool exhaustion detected for cell ${mastery.cellId} ` +
+          `(θ=${mastery.ability_theta.toFixed(2)})`
+        );
+        console.log(
+          `[STOPPING] Available in optimal range [${exhaustionCheck.optimalRange.minDifficulty.toFixed(2)}, ` +
+          `${exhaustionCheck.optimalRange.maxDifficulty.toFixed(2)}]: ${exhaustionCheck.availableCount}`
+        );
+
+        const rescueResult = await executeRescueLogic(
+          userId,
+          quizId,
+          mastery.cellId,
+          mastery.ability_theta,
+          exhaustionCheck,
+          effectiveTargetSEM,
+          convergenceConfig
+        );
+
+        if (rescueResult.action === 'stop') {
+          // Mark cell complete
+          await prisma.userCellMastery.update({
+            where: {
+              userId_cellId: {
+                userId,
+                cellId: mastery.cellId
+              }
+            },
+            data: { mastery_status: 1 }
+          });
+
+          console.log(`[STOPPING] Cell ${mastery.cellId} marked as complete due to pool exhaustion`);
+
+          // If this was the last active cell, stop quiz
+          if (activeMasteries.length === 1) {
+            return {
+              shouldStop: true,
+              reason: 'difficulty_range_exhausted',
+              details: {
+                questionCount: answerCount,
+                averageSEM,
+                cellsCompleted: masteredCells + 1,
+                totalCells: allCells
+              }
+            };
+          }
+        }
+      }
+    }
   }
 
   // Check minimum information rule if enabled
