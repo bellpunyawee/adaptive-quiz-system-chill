@@ -148,3 +148,7 @@ optimization_archive/
 # Keep only final results
 !optionA-adaptive-metrics.txt
 !optionA-monte-carlo.txt
+
+# External datasets
+data/
+!data/.gitkeep

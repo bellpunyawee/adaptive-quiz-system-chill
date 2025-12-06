@@ -403,24 +403,7 @@ const estimate = estimateAbility(responses);
 
 ---
 
-## References
-
-- Lord, F. M. (1980). *Applications of Item Response Theory to Practical Testing Problems*
-- Birnbaum, A. (1968). "Some Latent Trait Models and Their Use in Inferring an Examinee's Ability"
-- Embretson, S. E., & Reise, S. P. (2000). *Item Response Theory for Psychologists*
-- Van der Linden, W. J., & Glas, C. A. W. (2010). *Elements of Adaptive Testing*
-
----
-
 ## Support & Documentation
 
 - **Implementation Details**: See `src/lib/adaptive-engine/irt-3pl.ts`
 - **Test Examples**: See `src/lib/adaptive-engine/__tests__/`
-- **Scripts**: See `src/scripts/` for data generation and calibration
-- **Performance Reports**: See `PERFORMANCE_IMPROVEMENT_SUMMARY.md`
-
----
-
-**Last Updated**: 2025-11-12
-**Status**: ✅ Production Ready
-**Maintained By**: Adaptive Quiz System Team
