@@ -19,6 +19,9 @@ import {
 } from '@/components/ui/select';
 import { Upload, X, Loader2, ArrowLeft, Save, Eye, Expand } from 'lucide-react';
 import { TagSelector } from '@/components/admin/TagSelector';
+import { DatasetUpload } from '@/components/admin/DatasetUpload';
+import { RichTextEditor } from '@/components/admin/RichTextEditor';
+import { RichTextViewer } from '@/components/admin/RichTextViewer';
 import {
   Dialog,
   DialogContent,
@@ -41,6 +44,8 @@ interface Question {
   text: string;
   explanation: string | null;
   imageUrl: string | null;
+  datasetUrl: string | null;
+  datasetFilename: string | null;
   bloomTaxonomy: string | null;
   cellId: string;
   answerOptions: {
@@ -77,6 +82,8 @@ export default function EditQuestionPage({
   const [bloomTaxonomy, setBloomTaxonomy] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [datasetUrl, setDatasetUrl] = useState<string | null>(null);
+  const [datasetFilename, setDatasetFilename] = useState<string | null>(null);
   const [optionCount, setOptionCount] = useState<'4' | '5'>('4');
   const [options, setOptions] = useState<OptionInput[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -131,6 +138,8 @@ export default function EditQuestionPage({
         setCellId(question.cellId);
         setBloomTaxonomy(question.bloomTaxonomy || '');
         setImageUrl(question.imageUrl);
+        setDatasetUrl(question.datasetUrl);
+        setDatasetFilename(question.datasetFilename);
         setOptionCount(question.answerOptions.length === 5 ? '5' : '4');
         setOptions(
           question.answerOptions.map((opt) => ({
@@ -276,6 +285,8 @@ export default function EditQuestionPage({
           text: questionText,
           explanation: explanation || null,
           imageUrl: imageUrl || null,
+          datasetUrl: datasetUrl || null,
+          datasetFilename: datasetFilename || null,
           bloomTaxonomy: bloomTaxonomy || null,
           cellId,
           options,
@@ -360,19 +371,20 @@ export default function EditQuestionPage({
               <Label htmlFor="questionText">
                 Question Text <span className="text-destructive">*</span>
               </Label>
-              <Textarea
-                id="questionText"
-                placeholder="Enter the question..."
-                value={questionText}
-                onChange={(e) => setQuestionText(e.target.value)}
-                rows={4}
-                required
+              <p className="text-xs text-muted-foreground mb-2">
+                Use the rich text editor to format your question. You can insert images anywhere in the text, add formatting, lists, and more.
+              </p>
+              <RichTextEditor
+                content={questionText}
+                onChange={setQuestionText}
+                placeholder="Enter your question here... Use the toolbar to format text and insert images."
+                disabled={loading || fetchingQuestion}
               />
             </div>
 
-            {/* Image Upload */}
-            <div className="space-y-2">
-              <Label>Question Image (Optional)</Label>
+            {/* Legacy Image Upload - Hidden but kept for backward compatibility */}
+            <div className="space-y-2 hidden">
+              <Label>Question Image (Optional - Use rich text editor instead)</Label>
               {!imageUrl ? (
                 <div
                   onDrop={handleDrop}
@@ -425,6 +437,27 @@ export default function EditQuestionPage({
                   </Button>
                 </div>
               )}
+            </div>
+
+            {/* Dataset Upload */}
+            <div className="space-y-2">
+              <Label>Dataset Attachment (Optional)</Label>
+              <DatasetUpload
+                currentDatasetUrl={datasetUrl}
+                currentDatasetFilename={datasetFilename}
+                onUpload={(url, filename) => {
+                  setDatasetUrl(url);
+                  setDatasetFilename(filename);
+                }}
+                onRemove={() => {
+                  setDatasetUrl(null);
+                  setDatasetFilename(null);
+                }}
+                disabled={loading || fetchingQuestion}
+              />
+              <p className="text-xs text-muted-foreground">
+                Attach a data file (CSV, JSON, Excel) for students to download with this question
+              </p>
             </div>
 
             {/* Topic Selection */}
@@ -611,9 +644,13 @@ export default function EditQuestionPage({
             <Card className="transition-all">
               <CardHeader>
                 <CardTitle>Question 1</CardTitle>
-                <CardDescription className="pt-4 text-lg leading-relaxed font-medium text-foreground">
-                  {questionText || 'Question text will appear here...'}
-                </CardDescription>
+                <div className="pt-4">
+                  {questionText ? (
+                    <RichTextViewer content={questionText} className="text-lg leading-relaxed" />
+                  ) : (
+                    <p className="text-muted-foreground">Question text will appear here...</p>
+                  )}
+                </div>
                 {imageUrl && (
                   <div
                     className="relative w-full h-80 mt-6 mb-2 rounded-lg overflow-hidden bg-muted border cursor-pointer hover:shadow-lg transition-shadow group"

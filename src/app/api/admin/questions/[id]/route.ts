@@ -92,6 +92,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       text,
       explanation,
       imageUrl,
+      datasetUrl,
+      datasetFilename,
       bloomTaxonomy,
       cellId,
       options,
@@ -102,7 +104,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Get existing question
     const existingQuestion = await prisma.question.findUnique({
       where: { id },
-      select: { imageUrl: true },
+      select: { imageUrl: true, datasetUrl: true },
     });
 
     if (!existingQuestion) {
@@ -143,11 +145,29 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     }
 
+    // If datasetUrl changed and old dataset exists, delete old dataset from Blob
+    if (
+      datasetUrl !== undefined &&
+      existingQuestion.datasetUrl &&
+      existingQuestion.datasetUrl !== datasetUrl
+    ) {
+      try {
+        await del(existingQuestion.datasetUrl, {
+          token: process.env.BLOB_READ_WRITE_TOKEN,
+        });
+      } catch (error) {
+        console.error('Error deleting old dataset:', error);
+        // Continue anyway - don't fail the update if dataset deletion fails
+      }
+    }
+
     // Update question
     const updateData: any = {
       ...(text !== undefined && { text }),
       ...(explanation !== undefined && { explanation }),
       ...(imageUrl !== undefined && { imageUrl }),
+      ...(datasetUrl !== undefined && { datasetUrl }),
+      ...(datasetFilename !== undefined && { datasetFilename }),
       ...(bloomTaxonomy !== undefined && { bloomTaxonomy }),
       ...(cellId !== undefined && { cellId }),
       ...(difficulty_b !== undefined && { difficulty_b }),
@@ -211,10 +231,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params;
 
-    // Get question to check for image
+    // Get question to check for image and dataset
     const question = await prisma.question.findUnique({
       where: { id },
-      select: { imageUrl: true },
+      select: { imageUrl: true, datasetUrl: true },
     });
 
     if (!question) {
@@ -229,6 +249,18 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         });
       } catch (error) {
         console.error('Error deleting image:', error);
+        // Continue anyway
+      }
+    }
+
+    // Delete dataset from Blob if it exists
+    if (question.datasetUrl) {
+      try {
+        await del(question.datasetUrl, {
+          token: process.env.BLOB_READ_WRITE_TOKEN,
+        });
+      } catch (error) {
+        console.error('Error deleting dataset:', error);
         // Continue anyway
       }
     }

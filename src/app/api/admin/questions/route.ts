@@ -23,6 +23,8 @@ export async function GET(request: NextRequest) {
     const isActive = searchParams.get('isActive');
     const search = searchParams.get('search');
     const tags = searchParams.get('tags'); // Comma-separated tag names
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '20');
 
     const where: any = {};
 
@@ -53,6 +55,13 @@ export async function GET(request: NextRequest) {
         };
       }
     }
+
+    // Get total count for pagination
+    const totalCount = await prisma.question.count({ where });
+
+    // Calculate pagination
+    const skip = (page - 1) * pageSize;
+    const take = pageSize;
 
     const questions = await prisma.question.findMany({
       where,
@@ -86,9 +95,17 @@ export async function GET(request: NextRequest) {
       orderBy: {
         id: 'desc',
       },
+      skip,
+      take,
     });
 
-    return NextResponse.json({ questions });
+    return NextResponse.json({
+      questions,
+      totalCount,
+      page,
+      pageSize,
+      totalPages: Math.ceil(totalCount / pageSize)
+    });
   } catch (error) {
     console.error('Error fetching questions:', error);
     return NextResponse.json(
@@ -119,6 +136,8 @@ export async function POST(request: NextRequest) {
       text,
       explanation,
       imageUrl,
+      datasetUrl,
+      datasetFilename,
       bloomTaxonomy,
       cellId,
       options, // Array of { text, isCorrect }
@@ -158,6 +177,8 @@ export async function POST(request: NextRequest) {
         text,
         explanation,
         imageUrl,
+        datasetUrl,
+        datasetFilename,
         bloomTaxonomy,
         cellId,
         difficulty_b: difficulty_b || 0,

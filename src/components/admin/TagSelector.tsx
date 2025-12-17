@@ -31,21 +31,24 @@ interface TagSelectorProps {
   selectedTagIds: string[];
   onTagsChange: (tagIds: string[]) => void;
   disabled?: boolean;
+  courseId?: string; // Optional courseId for course-scoped tags
 }
 
-export function TagSelector({ selectedTagIds, onTagsChange, disabled = false }: TagSelectorProps) {
+export function TagSelector({ selectedTagIds, onTagsChange, disabled = false, courseId }: TagSelectorProps) {
   const [open, setOpen] = useState(false);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchTags();
-  }, []);
+  }, [courseId]);
 
   const fetchTags = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/tags');
+      // Use course-scoped API if courseId provided, otherwise use admin API
+      const url = courseId ? `/api/courses/${courseId}/tags` : '/api/admin/tags';
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch tags');
       const data = await res.json();
       setTags(data);

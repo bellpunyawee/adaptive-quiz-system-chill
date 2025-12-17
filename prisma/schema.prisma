@@ -8,85 +8,150 @@ datasource db {
 }
 
 model User {
-  id              String             @id @default(cuid())
-  name            String?
-  password        String?
-  email           String?            @unique
-  emailVerified   DateTime?
-  image           String?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  id            String    @id @default(cuid())
+  name          String?
+  password      String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   // Role-based access control
-  role            String             @default("user")  // "user" | "admin"
+  role String @default("user") // "user" | "admin" | "instructor"
 
   // Baseline assessment tracking
-  baselineCompleted    Boolean   @default(false)
-  baselineCompletedAt  DateTime?
-  baselineQuizId       String?
+  baselineCompleted   Boolean   @default(false)
+  baselineCompletedAt DateTime?
+  baselineQuizId      String?
 
-  quizzes         Quiz[]
-  userAnswers     UserAnswer[]
-  userCellMastery UserCellMastery[]
-  engineLogs      EngineLog[]
-  abilityHistory  AbilityHistory[]
-  questionReviews QuestionReview[]
-  feedbackLogs    FeedbackLog[]
+  quizzes            Quiz[]
+  userAnswers        UserAnswer[]
+  userCellMastery    UserCellMastery[]
+  engineLogs         EngineLog[]
+  abilityHistory     AbilityHistory[]
+  questionReviews    QuestionReview[]
+  feedbackLogs       FeedbackLog[]
   learnerPreferences LearnerPreferences?
-  knowledgeGaps   KnowledgeGap[]
+  knowledgeGaps      KnowledgeGap[]
+
+  // Multi-course support
+  ownedCourses Course[]     @relation("InstructorCourses") // Courses this user instructs
+  enrollments  Enrollment[] // Courses this user is enrolled in
+}
+
+// Multi-Course Support Models
+
+model Course {
+  id          String  @id @default(cuid())
+  title       String
+  description String?
+  joinCode    String  @unique // 6-char alphanumeric for student enrollment
+
+  // Instructor ownership (One-to-Many: one instructor owns many courses)
+  instructorId String
+  instructor   User   @relation("InstructorCourses", fields: [instructorId], references: [id])
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Course-scoped resources
+  cells       Cell[]
+  questions   Question[]
+  quizzes     Quiz[]
+  tags        Tag[]
+  enrollments Enrollment[]
+
+  @@index([instructorId])
+  @@index([joinCode])
+  @@index([isActive])
+}
+
+model Enrollment {
+  id       String @id @default(cuid())
+  userId   String
+  courseId String
+  role     String @default("STUDENT") // "STUDENT" | "INSTRUCTOR"
+
+  enrolledAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId]) // One enrollment per user per course
+  @@index([courseId])
+  @@index([userId])
+  @@index([role])
 }
 
 model Cell {
-  id             String          @id @default(cuid())
-  name           String          
-  difficulty_b   Float           @default(0)
-  discrimination_a Float         @default(1)
+  id               String @id @default(cuid())
+  name             String
+  difficulty_b     Float  @default(0)
+  discrimination_a Float  @default(1)
+
+  // Multi-course support
+  courseId String? // Nullable for migration (existing data)
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
   questions      Question[]
   userMastery    UserCellMastery[]
-  abilityHistory  AbilityHistory[]
+  abilityHistory AbilityHistory[]
+
+  @@unique([courseId, name]) // Unique topic name within course
+  @@index([courseId])
 }
 
 model Question {
-  id               String         @id @default(cuid())
-  text             String
-  explanation      String?
-  imageUrl         String?        // Optional image for question (Vercel Blob URL)
-  bloomTaxonomy    String?        // Bloom's Taxonomy level: Remember, Understand, Apply, Analyze, Evaluate, Create
-  cellId           String
-  cell             Cell           @relation(fields: [cellId], references: [id])
+  id              String  @id @default(cuid())
+  text            String
+  explanation     String?
+  imageUrl        String? // Optional image for question (Vercel Blob URL)
+  datasetUrl      String? // Optional dataset file attachment (Vercel Blob URL)
+  datasetFilename String? // Original filename for display (e.g., "sales_data.csv")
+  bloomTaxonomy   String? // Bloom's Taxonomy level: Remember, Understand, Apply, Analyze, Evaluate, Create
+  cellId          String
+  cell            Cell    @relation(fields: [cellId], references: [id])
+
+  // Multi-course support (denormalized for query performance)
+  courseId String? // Nullable for migration
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   // IRT Parameters (2PL - existing)
-  difficulty_b     Float          @default(0)
-  discrimination_a Float          @default(1)
+  difficulty_b     Float @default(0)
+  discrimination_a Float @default(1)
 
   // 3PL Extension (NEW)
-  guessing_c       Float          @default(0.0)     // Pseudo-chance level (0-0.35)
-  irtModel         String         @default("2PL")   // "2PL" or "3PL"
+  guessing_c Float  @default(0.0) // Pseudo-chance level (0-0.35)
+  irtModel   String @default("2PL") // "2PL" or "3PL"
 
   // Exposure control (Sympson-Hetter)
-  exposureCount    Int            @default(0)
-  maxExposure      Int            @default(10)
+  exposureCount    Int       @default(0)
+  maxExposure      Int       @default(10)
   lastUsed         DateTime?
-  isActive         Boolean        @default(true)
+  isActive         Boolean   @default(true)
   retiredAt        DateTime?
   retirementReason String?
 
   // Calibration tracking
-  responseCount    Int            @default(0)
-  correctRate      Float?
-  lastCalibrated   DateTime?
-  calibrationSampleSize Int?                       // Sample size used for calibration
-  calibrationDate       DateTime?                   // Last calibration date
+  responseCount         Int       @default(0)
+  correctRate           Float?
+  lastCalibrated        DateTime?
+  calibrationSampleSize Int? // Sample size used for calibration
+  calibrationDate       DateTime? // Last calibration date
 
-  answerOptions    AnswerOption[]
-  userAnswers      UserAnswer[]
-  reviews          QuestionReview[]
-  tags             QuestionTag[]                    // Many-to-many with tags
+  answerOptions AnswerOption[]
+  userAnswers   UserAnswer[]
+  reviews       QuestionReview[]
+  tags          QuestionTag[] // Many-to-many with tags
 
   @@index([cellId, isActive])
   @@index([exposureCount])
   @@index([lastUsed])
   @@index([irtModel])
+  @@index([courseId, isActive]) // Primary filter for course-scoped queries
+  @@index([courseId, cellId]) // Course + topic filter
 }
 
 model AnswerOption {
@@ -106,41 +171,47 @@ model Quiz {
   userAnswers UserAnswer[]
   startedAt   DateTime     @default(now())
   completedAt DateTime?
-  engineLogs      EngineLog[]
+  engineLogs  EngineLog[]
+
+  // Multi-course support
+  courseId String? // Nullable for migration
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   // Quiz settings
-  explorationParam Float?   @default(0.5)
-  timerMinutes      Int?
-  maxQuestions     Int?     @default(10)
+  explorationParam Float?  @default(0.5)
+  timerMinutes     Int?
+  maxQuestions     Int?    @default(10)
   selectedCells    String?
-  topicSelection   String?  @default("system")
+  topicSelection   String? @default("system")
 
   // Quiz type: "baseline" or "regular"
-  quizType         String   @default("regular")
+  quizType String @default("regular")
 
   // A/B Testing
-  abTestVariant    String?  // 'A' | 'B' | null (not in test)
-  abTestName       String?  // Name of the test this quiz is part of
+  abTestVariant String? // 'A' | 'B' | null (not in test)
+  abTestName    String? // Name of the test this quiz is part of
 
   @@index([abTestVariant, abTestName])
+  @@index([courseId])
+  @@index([courseId, userId]) // Course + user filter
 }
 
 model UserCellMastery {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cellId         String
-  cell           Cell     @relation(fields: [cellId], references: [id], onDelete: Cascade)
-  ability_theta  Float    @default(0)
-  selection_count Int     @default(0)
-  mastery_status Int      @default(0)
+  id              String @id @default(cuid())
+  userId          String
+  user            User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cellId          String
+  cell            Cell   @relation(fields: [cellId], references: [id], onDelete: Cascade)
+  ability_theta   Float  @default(0)
+  selection_count Int    @default(0)
+  mastery_status  Int    @default(0)
 
-  sem            Float?              
-  confidence     Float?              
-  lastEstimated  DateTime?           
-  responseCount  Int     @default(0) 
-  
-  updatedAt      DateTime @updatedAt
+  sem           Float?
+  confidence    Float?
+  lastEstimated DateTime?
+  responseCount Int       @default(0)
+
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, cellId])
 }
@@ -151,28 +222,31 @@ model UserAnswer {
   quiz             Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   questionId       String
   question         Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  selectedOptionId String?  // Nullable for skipped questions
+  selectedOptionId String? // Nullable for skipped questions
   isCorrect        Boolean
   createdAt        DateTime @default(now())
   userId           String
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Skip tracking
-  wasSkipped       Boolean  @default(false)
-  skipReason       String?  @default("dont_know") // For analytics
+  wasSkipped Boolean @default(false)
+  skipReason String? @default("dont_know") // For analytics
 
-  responseTime        Int?      // Time taken to answer in milliseconds
-  abilityAtTime       Float?    // User's ability estimate when question was answered
+  responseTime        Int? // Time taken to answer in milliseconds
+  abilityAtTime       Float? // User's ability estimate when question was answered
   questionDisplayedAt DateTime? // When question was shown to user (for engagement tracking)
+
+  // Selection transparency (JSON: {category, categoryLabel, reasoningText})
+  selectionMetadata String? // Human-readable reasoning for question selection
 }
 
 model EngineLog {
   id        String   @id @default(cuid())
   userId    String
   quizId    String
-  eventType String   // 'question_selected', 'answer_processed', 'mastery_achieved', etc.
-  data      String   // JSON string with event-specific data
-  duration  Int?     // milliseconds (optional)
+  eventType String // 'question_selected', 'answer_processed', 'mastery_achieved', etc.
+  data      String // JSON string with event-specific data
+  duration  Int? // milliseconds (optional)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -185,11 +259,11 @@ model EngineLog {
 
 model IRTParameterHistory {
   id               String   @id @default(cuid())
-  entityType       String   
-  entityId         String   
+  entityType       String
+  entityId         String
   difficulty_b     Float
   discrimination_a Float
-  reason           String?  
+  reason           String?
   updatedAt        DateTime @default(now())
 
   @@index([entityType, entityId])
@@ -213,16 +287,16 @@ model AbilityHistory {
 }
 
 model QuestionReview {
-  id              String   @id @default(cuid())
-  userId          String
-  questionId      String
-  lastReviewed    DateTime
-  reviewCount     Int      @default(0)
-  easinessFactor  Float    @default(2.5)
-  interval        Int      @default(1)      // days until next review
-  nextReviewDate  DateTime
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  userId         String
+  questionId     String
+  lastReviewed   DateTime
+  reviewCount    Int      @default(0)
+  easinessFactor Float    @default(2.5)
+  interval       Int      @default(1) // days until next review
+  nextReviewDate DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -235,16 +309,16 @@ model QuestionReview {
 // LLM-Based Personalized Feedback Models
 
 model FeedbackLog {
-  id            String   @id @default(cuid())
-  userId        String
-  quizId        String
-  feedbackText  String   // Generated feedback content
-  feedbackType  String   @default("quiz_summary") // quiz_summary, dashboard, etc.
-  tokensUsed    Int      // Track API costs (input + output)
-  responseTime  Int      // Performance monitoring (ms)
-  usedCache     Boolean  @default(false)
-  modelUsed     String   // gemini-2.5-flash, template, etc.
-  createdAt     DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String
+  quizId       String
+  feedbackText String // Generated feedback content
+  feedbackType String   @default("quiz_summary") // quiz_summary, dashboard, etc.
+  tokensUsed   Int // Track API costs (input + output)
+  responseTime Int // Performance monitoring (ms)
+  usedCache    Boolean  @default(false)
+  modelUsed    String // gemini-2.5-flash, template, etc.
+  createdAt    DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -255,24 +329,24 @@ model FeedbackLog {
 }
 
 model LearnerPreferences {
-  id                String   @id @default(cuid())
-  userId            String   @unique
-  feedbackDetail    String   @default("balanced") // concise, balanced, detailed
-  focusAreas        String?  // JSON array: ["conceptual", "procedural", "application"]
-  motivationStyle   String   @default("growth")   // growth, achievement, autonomy
-  updatedAt         DateTime @updatedAt
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  feedbackDetail  String   @default("balanced") // concise, balanced, detailed
+  focusAreas      String? // JSON array: ["conceptual", "procedural", "application"]
+  motivationStyle String   @default("growth") // growth, achievement, autonomy
+  updatedAt       DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model KnowledgeGap {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   userId         String
-  topicId        String   // cellId reference
-  gapDescription String   // LLM-identified knowledge gap
-  severity       String   @default("moderate") // minor, moderate, critical
-  addressed      Boolean  @default(false)
-  identifiedAt   DateTime @default(now())
+  topicId        String // cellId reference
+  gapDescription String // LLM-identified knowledge gap
+  severity       String    @default("moderate") // minor, moderate, critical
+  addressed      Boolean   @default(false)
+  identifiedAt   DateTime  @default(now())
   addressedAt    DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -285,31 +359,31 @@ model KnowledgeGap {
 // Contextual Bandit Models
 
 model ContextualModel {
-  id                String   @id // questionId
-  A_matrix          Bytes    // 15×15 design matrix (serialized)
-  b_vector          Bytes    // 15D reward vector (serialized)
-  A_inv_matrix      Bytes    // 15×15 inverse matrix (cached, serialized)
-  theta_hat         Bytes    // 15D weight vector (serialized)
-  observationCount  Int      @default(0)
-  lastUpdated       DateTime @updatedAt
-  createdAt         DateTime @default(now())
+  id               String   @id // questionId
+  A_matrix         Bytes // 15×15 design matrix (serialized)
+  b_vector         Bytes // 15D reward vector (serialized)
+  A_inv_matrix     Bytes // 15×15 inverse matrix (cached, serialized)
+  theta_hat        Bytes // 15D weight vector (serialized)
+  observationCount Int      @default(0)
+  lastUpdated      DateTime @updatedAt
+  createdAt        DateTime @default(now())
 
   @@index([lastUpdated])
   @@index([observationCount])
 }
 
 model DecisionSnapshot {
-  id              String   @id @default(cuid())
-  userId          String
-  questionId      String
-  quizId          String
-  context         Bytes    // 15D context vector (serialized)
-  ucbScore        Float    // Final UCB score used for selection
-  muScore         Float    // Expected reward component
-  sigmaScore      Float    // Uncertainty component
-  thetaAtTime     Float    // User ability at decision time
-  algorithm       String   @default("hybrid") // 'linucb', 'hybrid', 'ucb'
-  timestamp       DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  questionId  String
+  quizId      String
+  context     Bytes // 15D context vector (serialized)
+  ucbScore    Float // Final UCB score used for selection
+  muScore     Float // Expected reward component
+  sigmaScore  Float // Uncertainty component
+  thetaAtTime Float // User ability at decision time
+  algorithm   String   @default("hybrid") // 'linucb', 'hybrid', 'ucb'
+  timestamp   DateTime @default(now())
 
   @@index([userId, quizId])
   @@index([questionId])
@@ -320,16 +394,22 @@ model DecisionSnapshot {
 // Tag System for Question Categorization
 
 model Tag {
-  id          String        @id @default(cuid())
-  name        String        @unique        // Unique tag name (e.g., "baseline", "advanced")
-  description String?                      // Optional description
-  color       String?                      // Hex color for UI display (e.g., "#FCD34D")
-  category    String?                      // Tag category (e.g., "assessment_type", "difficulty_level")
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id          String   @id @default(cuid())
+  name        String // Tag name (e.g., "baseline", "advanced")
+  description String? // Optional description
+  color       String? // Hex color for UI display (e.g., "#FCD34D")
+  category    String? // Tag category (e.g., "assessment_type", "difficulty_level")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  questions   QuestionTag[]                // Many-to-many with questions
+  // Multi-course support
+  courseId String? // Nullable for migration
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
+  questions QuestionTag[] // Many-to-many with questions
+
+  @@unique([courseId, name]) // Unique tag name per course
+  @@index([courseId])
   @@index([category])
 }
 
@@ -338,8 +418,8 @@ model QuestionTag {
   tagId      String
   createdAt  DateTime @default(now())
 
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([questionId, tagId])
   @@index([tagId])

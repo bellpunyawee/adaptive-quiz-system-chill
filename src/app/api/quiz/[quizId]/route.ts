@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import { selectNextQuestionForUser, processUserAnswer } from '@/lib/adaptive-engine/engine-enhanced';
 import { selectBaselineQuestion, getBaselineProgress } from '@/lib/adaptive-engine/baseline-engine';
 import { updateSpacedRepetition } from '@/lib/spaced-repetition';
+import { analyzeQuizForKnowledgeGaps } from '@/lib/adaptive-engine/knowledge-gap-analyzer';
 import prisma from '@/lib/db';
 
 export async function GET(req: Request) {
@@ -68,6 +69,50 @@ export async function GET(req: Request) {
         console.log(`[Baseline] User ${session.user.id} completed baseline assessment`);
       }
 
+      // Analyze quiz for knowledge gaps and persist them
+      try {
+        const userAnswers = await prisma.userAnswer.findMany({
+          where: {
+            quizId: quizId,
+            userId: session.user.id,
+          },
+          include: {
+            question: {
+              include: {
+                cell: {
+                  select: { name: true, id: true }
+                }
+              }
+            }
+          }
+        });
+
+        const { topicsToReview } = await analyzeQuizForKnowledgeGaps(
+          session.user.id,
+          quizId,
+          userAnswers
+        );
+
+        // Persist knowledge gaps to database
+        if (topicsToReview.length > 0) {
+          await prisma.knowledgeGap.createMany({
+            data: topicsToReview.map(topic => ({
+              userId: session.user.id,
+              topicId: topic.cellId,
+              gapDescription: topic.reviewReason,
+              severity: topic.reviewPriority,
+              addressed: false,
+              identifiedAt: new Date()
+            })),
+            skipDuplicates: true // Avoid duplicate entries if quiz analyzed multiple times
+          });
+          console.log(`[KnowledgeGaps] Identified ${topicsToReview.length} knowledge gaps for user ${session.user.id}`);
+        }
+      } catch (error) {
+        // Don't fail quiz completion if knowledge gap analysis fails
+        console.error('[KnowledgeGaps] Failed to analyze quiz for knowledge gaps:', error);
+      }
+
       return NextResponse.json({ status: 'completed', quizType: quiz.quizType });
     }
 
@@ -82,8 +127,18 @@ export async function GET(req: Request) {
       })
     ]);
 
+    // Get cell information for transparency metadata
+    const cell = await prisma.cell.findUnique({
+      where: { id: nextQuestion.cellId },
+      select: { name: true }
+    });
+
     // Remove sensitive IRT parameters from response
-    const { discrimination_a, difficulty_b, answerOptions, ...publicQuestionData } = nextQuestion;
+    const { discrimination_a, difficulty_b, answerOptions, selectionReasoning, ...publicQuestionData } = nextQuestion;
+
+    // Calculate difficulty label for UI
+    const difficultyLabel = difficulty_b < -1 ? 'Easy' :
+                           difficulty_b < 1 ? 'Medium' : 'Hard';
 
     // Shuffle options to prevent pattern guessing and add stochasticity
     const publicOptions = answerOptions
@@ -103,7 +158,16 @@ export async function GET(req: Request) {
         ...publicQuestionData,
         options: publicOptions,
         totalQuestions: quizSettings?.maxQuestions || 10,
-        answeredCount
+        answeredCount,
+        // Transparency metadata
+        topicName: cell?.name || 'Unknown Topic',
+        bloomTaxonomy: nextQuestion.bloomTaxonomy,
+        difficultyLabel: difficultyLabel,
+        selectionMetadata: selectionReasoning ? {
+          category: selectionReasoning.category,
+          categoryLabel: selectionReasoning.categoryLabel,
+          reasoningText: selectionReasoning.reasoningText
+        } : undefined
       },
       ...(baselineProgress && { baselineProgress }), // Include if baseline quiz
     });
@@ -141,7 +205,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { questionId, selectedOptionId, responseTime, questionDisplayedAt, wasSkipped } = body;
+    const { questionId, selectedOptionId, responseTime, questionDisplayedAt, wasSkipped, selectionMetadata } = body;
 
     if (!questionId) {
       return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
@@ -237,6 +301,8 @@ export async function POST(req: Request) {
         abilityAtTime: userMastery?.ability_theta || 0,
         responseTime: validatedResponseTime,
         questionDisplayedAt: questionDisplayedAt ? new Date(questionDisplayedAt) : null,
+        // Store selection reasoning for post-quiz transparency
+        selectionMetadata: selectionMetadata ? JSON.stringify(selectionMetadata) : null,
       },
     });
 

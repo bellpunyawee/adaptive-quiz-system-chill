@@ -67,9 +67,9 @@ export function PerformanceSummary({
   const improvementFromBaseline = baselineScore !== undefined ? score - baselineScore : null;
 
   return (
-    <div className="space-y-6">
-      {/* Overall Summary */}
-      <Card>
+    <>
+      {/* Performance Insights Card - Takes 2 columns on desktop */}
+      <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Award className="h-5 w-5 text-primary" />
@@ -77,7 +77,7 @@ export function PerformanceSummary({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Best Topic */}
             {bestTopic && (
               <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
@@ -141,9 +141,9 @@ export function PerformanceSummary({
         </CardContent>
       </Card>
 
-      {/* Topic Breakdown Chart */}
+      {/* Topic Breakdown Chart - Full Width Below */}
       {topicPerformance.length > 0 && (
-        <Card>
+        <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Performance by Topic</CardTitle>
           </CardHeader>
@@ -191,6 +191,6 @@ export function PerformanceSummary({
           </CardContent>
         </Card>
       )}
-    </div>
+    </>
   );
 }

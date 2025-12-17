@@ -10,12 +10,33 @@ import { formatDuration } from "@/lib/utils";
 import { QuestionReviewCard } from "@/components/quiz/QuestionReviewCard";
 import { PerformanceSummary } from "@/components/quiz/PerformanceSummary";
 import { PersonalizedFeedback } from "@/components/quiz/PersonalizedFeedback";
+import { analyzeQuizForKnowledgeGaps } from "@/lib/adaptive-engine/knowledge-gap-analyzer";
+import { generateDynamicReasoning } from "@/lib/adaptive-engine/selection-reasoning";
 
 type PageProps = {
   params: Promise<{
     quizId: string;
   }>;
 };
+
+// Helper function to safely parse selection metadata JSON
+function parseSelectionMetadata(raw: string | null): { categoryLabel: string; reasoningText: string } | undefined {
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    // Validate structure
+    if (parsed && typeof parsed.categoryLabel === 'string' && typeof parsed.reasoningText === 'string') {
+      return {
+        categoryLabel: parsed.categoryLabel,
+        reasoningText: parsed.reasoningText
+      };
+    }
+    return undefined;
+  } catch (e) {
+    console.error('[Review] Failed to parse selectionMetadata:', e);
+    return undefined;
+  }
+}
 
 export default async function ResultsPage({ params }: PageProps) {
     const { quizId } = await params;
@@ -138,6 +159,13 @@ export default async function ResultsPage({ params }: PageProps) {
 
     const timeTaken = formatDuration(quiz.startedAt, quiz.completedAt);
 
+    // Analyze quiz for knowledge gaps and uncertainty signals
+    const { topicsToReview, questionFlags } = await analyzeQuizForKnowledgeGaps(
+        session.user.id,
+        quizId,
+        userAnswers
+    );
+
     // Find topics with low performance (< 70%) for practice suggestion
     const weakTopics = topicPerformance.filter(t => t.accuracy < 70);
     const incorrectQuestions = userAnswers.filter(a => !a.isCorrect);
@@ -156,54 +184,57 @@ export default async function ResultsPage({ params }: PageProps) {
                     <span className="font-medium text-foreground">Quiz Results</span>
                 </nav>
 
-                {/* Header Card with Score */}
-                <Card>
-                    <CardHeader className="text-center pb-4">
-                        <div className="flex justify-center mb-4">
-                            <div className={`p-4 rounded-full ${
-                                score >= 80 ? 'bg-green-100 dark:bg-green-950' :
-                                score >= 60 ? 'bg-yellow-100 dark:bg-yellow-950' :
-                                'bg-red-100 dark:bg-red-950'
-                            }`}>
-                                <Award className={`h-12 w-12 ${
-                                    score >= 80 ? 'text-green-600' :
-                                    score >= 60 ? 'text-yellow-600' :
-                                    'text-red-600'
-                                }`} />
+                {/* Merged Score and Performance Summary */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Left: Score Card */}
+                    <Card className="lg:col-span-1">
+                        <CardHeader className="text-center pb-4">
+                            <div className="flex justify-center mb-4">
+                                <div className={`p-4 rounded-full ${
+                                    score >= 80 ? 'bg-green-100 dark:bg-green-950' :
+                                    score >= 60 ? 'bg-yellow-100 dark:bg-yellow-950' :
+                                    'bg-red-100 dark:bg-red-950'
+                                }`}>
+                                    <Award className={`h-12 w-12 ${
+                                        score >= 80 ? 'text-green-600' :
+                                        score >= 60 ? 'text-yellow-600' :
+                                        'text-red-600'
+                                    }`} />
+                                </div>
                             </div>
-                        </div>
-                        <CardTitle className="text-4xl font-bold mb-2">{score}%</CardTitle>
-                        <CardDescription className="text-lg">
-                            {score >= 80 ? 'Excellent Work!' : score >= 60 ? 'Good Job!' : 'Keep Practicing!'}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
-                            <div className="text-center">
-                                <p className="text-sm text-muted-foreground mb-1">Correct Answers</p>
-                                <p className="text-2xl font-bold">{correctAnswers} / {totalQuestions}</p>
+                            <CardTitle className="text-4xl font-bold mb-2">{score}%</CardTitle>
+                            <CardDescription className="text-lg">
+                                {score >= 80 ? 'Excellent Work!' : score >= 60 ? 'Good Job!' : 'Keep Practicing!'}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                                    <span className="text-sm text-muted-foreground">Correct</span>
+                                    <span className="text-lg font-bold">{correctAnswers} / {totalQuestions}</span>
+                                </div>
+                                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                                    <span className="text-sm text-muted-foreground">Time</span>
+                                    <span className="text-lg font-bold">{timeTaken}</span>
+                                </div>
+                                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                                    <span className="text-sm text-muted-foreground">Questions</span>
+                                    <span className="text-lg font-bold">{totalQuestions}</span>
+                                </div>
                             </div>
-                            <div className="text-center">
-                                <p className="text-sm text-muted-foreground mb-1">Time Taken</p>
-                                <p className="text-2xl font-bold">{timeTaken}</p>
-                            </div>
-                            <div className="text-center">
-                                <p className="text-sm text-muted-foreground mb-1">Questions</p>
-                                <p className="text-2xl font-bold">{totalQuestions}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
 
-                {/* Performance Summary with Charts */}
-                <PerformanceSummary
-                    totalQuestions={totalQuestions}
-                    correctAnswers={correctAnswers}
-                    score={score}
-                    topicPerformance={topicPerformance}
-                    averageScore={averageScore}
-                    baselineScore={baselineScore}
-                />
+                    {/* Right: Performance Insights */}
+                    <PerformanceSummary
+                        totalQuestions={totalQuestions}
+                        correctAnswers={correctAnswers}
+                        score={score}
+                        topicPerformance={topicPerformance}
+                        averageScore={averageScore}
+                        baselineScore={baselineScore}
+                    />
+                </div>
 
                 {/* AI-Powered Personalized Feedback */}
                 <PersonalizedFeedback quizId={quizId} autoLoad={true} />
@@ -260,6 +291,34 @@ export default async function ResultsPage({ params }: PageProps) {
                             const question = answer.question;
                             const correctOption = question.answerOptions.find(opt => opt.isCorrect);
 
+                            // Get uncertainty flag for this question
+                            const uncertaintyFlag = questionFlags.get(answer.questionId);
+
+                            // Parse existing selection metadata
+                            const existingReasoning = parseSelectionMetadata(answer.selectionMetadata);
+
+                            // Regenerate reasoning with uncertainty signal if flagged
+                            let enhancedReasoning = existingReasoning;
+                            if (uncertaintyFlag && existingReasoning) {
+                                // Parse existing metadata to get context
+                                try {
+                                    const metadata = JSON.parse(answer.selectionMetadata || '{}');
+                                    if (metadata.context) {
+                                        // Regenerate with uncertainty signal
+                                        const dynamicReasoning = generateDynamicReasoning(
+                                            metadata.context,
+                                            uncertaintyFlag
+                                        );
+                                        enhancedReasoning = {
+                                            categoryLabel: dynamicReasoning.categoryLabel,
+                                            reasoningText: dynamicReasoning.reasoningText
+                                        };
+                                    }
+                                } catch (e) {
+                                    // If context not available, keep existing reasoning
+                                }
+                            }
+
                             return (
                                 <QuestionReviewCard
                                     key={answer.id}
@@ -274,6 +333,12 @@ export default async function ResultsPage({ params }: PageProps) {
                                     explanation={question.explanation}
                                     responseTime={answer.responseTime}
                                     hideExplanation={quiz.quizType === 'baseline'}
+                                    bloomTaxonomy={question.bloomTaxonomy}
+                                    selectionReasoning={enhancedReasoning}
+                                    uncertaintyFlag={uncertaintyFlag ? {
+                                        signalType: uncertaintyFlag.signalType,
+                                        severity: uncertaintyFlag.severity
+                                    } : undefined}
                                 />
                             );
                         })}
