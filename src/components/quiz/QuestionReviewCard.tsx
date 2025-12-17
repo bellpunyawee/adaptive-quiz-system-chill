@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle, XCircle, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { CheckCircle, XCircle, ChevronDown, ChevronUp, Info, Lightbulb } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -17,6 +17,15 @@ interface QuestionReviewCardProps {
   explanation: string | null;
   responseTime?: number | null;
   hideExplanation?: boolean;
+  bloomTaxonomy?: string | null;
+  selectionReasoning?: {
+    categoryLabel: string;
+    reasoningText: string;
+  };
+  uncertaintyFlag?: {
+    signalType: 'incorrect' | 'easy_correct' | 'mixed_topic';
+    severity: 'low' | 'medium' | 'high';
+  };
 }
 
 export function QuestionReviewCard({
@@ -31,6 +40,9 @@ export function QuestionReviewCard({
   explanation,
   responseTime,
   hideExplanation = false,
+  bloomTaxonomy,
+  selectionReasoning,
+  uncertaintyFlag,
 }: QuestionReviewCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -70,6 +82,11 @@ export function QuestionReviewCard({
                 <Badge variant="outline" className="text-xs">
                   {topic}
                 </Badge>
+                {bloomTaxonomy && (
+                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                    {bloomTaxonomy}
+                  </Badge>
+                )}
                 <Badge className={`text-xs ${difficultyInfo.color}`}>
                   {difficultyInfo.label}
                 </Badge>
@@ -143,6 +160,25 @@ export function QuestionReviewCard({
               </div>
             </div>
 
+            {/* Why This Question? - Selection Transparency (Conditional on uncertainty) */}
+            {uncertaintyFlag && selectionReasoning && (
+              <div className="bg-purple-50 dark:bg-purple-950/30 border-2 border-purple-300 dark:border-purple-800 rounded-lg p-5 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-500 dark:bg-purple-600 flex-shrink-0 mt-0.5">
+                    <Lightbulb className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-base font-semibold text-purple-900 dark:text-purple-200 mb-2">
+                      Why This Question? - {selectionReasoning.categoryLabel}
+                    </p>
+                    <p className="text-base leading-relaxed text-purple-900 dark:text-purple-300">
+                      {selectionReasoning.reasoningText}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Explanation - Enhanced */}
             {explanation && !hideExplanation && (
               <div className="bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-300 dark:border-blue-800 rounded-lg p-5 shadow-sm">
@@ -152,7 +188,7 @@ export function QuestionReviewCard({
                   </div>
                   <div className="flex-1">
                     <p className="text-base font-semibold text-blue-900 dark:text-blue-200 mb-2">
-                      💡 Explanation
+                      Explanation
                     </p>
                     <p className="text-base leading-relaxed text-blue-900 dark:text-blue-300">
                       {explanation}

@@ -237,11 +237,28 @@ This document consolidates ALL metrics used across the adaptive quiz system, ide
 
 ---
 
-#### Regret (Placeholder)
+#### Regret Metrics
+
 | Metric | Status | Note |
 |--------|--------|------|
-| **Estimated Cumulative Regret** | ⚠️ TODO | Requires hindsight optimal calculation |
-| **Quiz Regret** | ⚠️ TODO | Per-quiz suboptimality measure |
+| **Instantaneous Regret** | ✅ IMPLEMENTED | Oracle-based regret per question selection |
+| **Cumulative Regret** | ✅ IMPLEMENTED | Aggregated suboptimality over quiz session |
+| **Algorithm Comparison** | ✅ IMPLEMENTED | Hybrid vs IRT vs LinUCB regret analysis |
+
+**Implementation:** `scripts/testing/monte-carlo-contextual-bandit.ts:768-800`
+
+**Calculation Method:**
+
+- **Oracle approach**: Compares actual reward vs. best possible reward
+- **Fisher Information**: Measures information gain from question selection
+- **Ability Match**: Considers topic-specific ability adjustments
+- **Cumulative tracking**: Sums instantaneous regret across all decisions
+
+**Usage in Pipeline:**
+
+- Included in algorithm comparison tests (test 5/9)
+- Part of publication validation pipeline
+- Tracks exploration vs. exploitation trade-offs
 
 ---
 

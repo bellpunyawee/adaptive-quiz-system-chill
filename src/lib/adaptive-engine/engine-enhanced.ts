@@ -11,6 +11,7 @@ import { engineMonitor, PerformanceTimer } from "./monitoring";
 import { getInitialThetaEstimate, selectWarmupQuestion } from "./warm-up-strategy";
 import { selectWithExposureControl, updateExposureCount, DEFAULT_EXPOSURE_CONFIG } from "./sympson-hetter";
 import { getTier2ConfigForQuizType, getDecayingExplorationParam, getDiscriminationBonus } from "./tier2-config";
+import { generateSelectionReasoning, SelectionContext, SelectionReasoning } from "./selection-reasoning";
 import { Prisma } from "@prisma/client";
 
 const questionWithAnswerOptions = Prisma.validator<Prisma.QuestionDefaultArgs>()({
@@ -18,6 +19,11 @@ const questionWithAnswerOptions = Prisma.validator<Prisma.QuestionDefaultArgs>()
 });
 
 export type QuestionWithAnswerOptions = Prisma.QuestionGetPayload<typeof questionWithAnswerOptions>;
+
+// Extended type with selection reasoning for transparency
+export type QuestionWithReasoning = QuestionWithAnswerOptions & {
+  selectionReasoning?: SelectionReasoning;
+};
 
 type UserMasteryWithCell = Prisma.UserCellMasteryGetPayload<{
   include: { cell: true };
@@ -81,7 +87,7 @@ function applyContentBalancing(
 export async function selectNextQuestionForUser(
   userId: string,
   quizId: string
-): Promise<QuestionWithAnswerOptions | null> {
+): Promise<QuestionWithReasoning | null> {
   const timer = new PerformanceTimer();
   console.log(`[ENGINE] ====== Starting Enhanced Question Selection ======`);
   console.log(`[ENGINE] User: ${userId}, Quiz: ${quizId}`);
@@ -98,6 +104,7 @@ export async function selectNextQuestionForUser(
         topicSelection: true,
         selectedCells: true,
         quizType: true,
+        courseId: true, // CRITICAL: Get courseId for multi-course support
       }
     });
 
@@ -105,6 +112,7 @@ export async function selectNextQuestionForUser(
     const maxQuestionsLimit = quizSettings?.maxQuestions ?? 50;
     const topicSelectionMode = quizSettings?.topicSelection ?? 'system';
     const quizType = quizSettings?.quizType ?? 'regular';
+    const courseId = quizSettings?.courseId; // Get courseId from quiz
     const selectedCellIds = topicSelectionMode === 'manual' && quizSettings?.selectedCells
       ? JSON.parse(quizSettings.selectedCells) as string[]
       : null;
@@ -117,6 +125,7 @@ export async function selectNextQuestionForUser(
       maxQuestionsLimit,
       topicSelectionMode,
       quizType,
+      courseId: courseId || 'not specified',
       selectedCellsCount: selectedCellIds?.length ?? 0,
       tier2Enabled: tier2Config.exploration.useDecay || tier2Config.questionSelection.useDiscriminationBonus
     });
@@ -247,7 +256,29 @@ export async function selectNextQuestionForUser(
           initialEstimate.theta
         );
 
-        return warmupQuestion;
+        // Generate selection reasoning for transparency
+        const selectionContext: SelectionContext = {
+          cellName: targetCell.cellName,
+          questionId: warmupQuestion.id,
+          isWarmup: true,
+          isFirstInCell: true,
+          cellSelectionCount: 0,
+          totalCellsInQuiz: userMasteries.length,
+          questionCount: totalSelections,
+          maxQuestions: maxQuestionsLimit,
+          explorationParam: 1.0, // Warm-up always uses high exploration
+          kliScore: 0, // Not applicable for warm-up
+          ucbScore: 0, // Not applicable for warm-up
+          difficulty_b: warmupQuestion.difficulty_b,
+          userAbility: initialEstimate.theta
+        };
+
+        const reasoning = generateSelectionReasoning(selectionContext);
+
+        return {
+          ...warmupQuestion,
+          selectionReasoning: reasoning
+        };
       }
     }
 
@@ -258,6 +289,7 @@ export async function selectNextQuestionForUser(
       cellId: targetCell.cellId,
       userId,
       quizId,
+      courseId, // CRITICAL: Pass courseId for multi-course data scoping
       excludeQuestionIds: [],
       quizType, // Pass quiz type for practice mode filtering
     });
@@ -415,7 +447,31 @@ export async function selectNextQuestionForUser(
     console.log(`[ENGINE] Selection completed in ${timer.elapsed()}ms`);
     console.log(`[ENGINE] ====== Question Selection Complete ======\n`);
 
-    return selectedQuestion;
+    // ==========================================
+    // STEP 8: Generate Selection Reasoning for Transparency
+    // ==========================================
+    const selectionContext: SelectionContext = {
+      cellName: targetCell.cellName,
+      questionId: selectedQuestion.id,
+      isWarmup: false,
+      isFirstInCell: cellAnswersCount === 0,
+      cellSelectionCount: cellSelections.get(targetCell.cellId) || 0,
+      totalCellsInQuiz: userMasteries.length,
+      questionCount: totalQuizSelections,
+      maxQuestions: maxQuestionsLimit,
+      explorationParam: explorationParameter,
+      kliScore: selectedScore.kli,
+      ucbScore: selectedScore.ucbScore,
+      difficulty_b: selectedQuestion.difficulty_b,
+      userAbility: mastery.ability_theta
+    };
+
+    const reasoning = generateSelectionReasoning(selectionContext);
+
+    return {
+      ...selectedQuestion,
+      selectionReasoning: reasoning
+    };
 
   } catch (error) {
     engineMonitor.trackError(

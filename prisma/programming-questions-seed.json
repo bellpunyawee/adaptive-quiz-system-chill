@@ -5,111 +5,241 @@
       {
         "text": "What is the correct way to create a variable in Python?",
         "difficulty": 0.2,
+        "bloomTaxonomy": "Remember",
         "explanation": "In Python, you create variables by simply assigning a value to a name. No type declaration is needed because Python is dynamically typed.",
         "options": [
-          { "text": "var x = 5", "isCorrect": false },
-          { "text": "x = 5", "isCorrect": true },
-          { "text": "int x = 5", "isCorrect": false },
-          { "text": "declare x = 5", "isCorrect": false }
+          {
+            "text": "var x = 5",
+            "isCorrect": false
+          },
+          {
+            "text": "x = 5",
+            "isCorrect": true
+          },
+          {
+            "text": "int x = 5",
+            "isCorrect": false
+          },
+          {
+            "text": "declare x = 5",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "Which of the following is the correct syntax for a single-line comment in Python?",
         "difficulty": 0.1,
+        "bloomTaxonomy": "Remember",
         "explanation": "In Python, single-line comments start with the # symbol. Everything after # on that line is ignored by the interpreter.",
         "options": [
-          { "text": "// This is a comment", "isCorrect": false },
-          { "text": "# This is a comment", "isCorrect": true },
-          { "text": "/* This is a comment */", "isCorrect": false },
-          { "text": "<!-- This is a comment -->", "isCorrect": false }
+          {
+            "text": "// This is a comment",
+            "isCorrect": false
+          },
+          {
+            "text": "# This is a comment",
+            "isCorrect": true
+          },
+          {
+            "text": "/* This is a comment */",
+            "isCorrect": false
+          },
+          {
+            "text": "<!-- This is a comment -->",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "What will be the output of: print(type(5.0))?",
         "difficulty": 0.3,
+        "bloomTaxonomy": "Understand",
         "explanation": "5.0 is a floating-point number in Python. The type() function returns <class 'float'> for floating-point numbers.",
         "options": [
-          { "text": "<class 'int'>", "isCorrect": false },
-          { "text": "<class 'float'>", "isCorrect": true },
-          { "text": "<class 'number'>", "isCorrect": false },
-          { "text": "<class 'decimal'>", "isCorrect": false }
+          {
+            "text": "<class 'int'>",
+            "isCorrect": false
+          },
+          {
+            "text": "<class 'float'>",
+            "isCorrect": true
+          },
+          {
+            "text": "<class 'number'>",
+            "isCorrect": false
+          },
+          {
+            "text": "<class 'decimal'>",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "Which method is used to convert a string to lowercase in Python?",
         "difficulty": 0.25,
+        "bloomTaxonomy": "Remember",
         "explanation": "The .lower() method converts all characters in a string to lowercase. For example: 'HELLO'.lower() returns 'hello'.",
         "options": [
-          { "text": "lowercase()", "isCorrect": false },
-          { "text": "toLower()", "isCorrect": false },
-          { "text": "lower()", "isCorrect": true },
-          { "text": "caseLower()", "isCorrect": false }
+          {
+            "text": "lowercase()",
+            "isCorrect": false
+          },
+          {
+            "text": "toLower()",
+            "isCorrect": false
+          },
+          {
+            "text": "lower()",
+            "isCorrect": true
+          },
+          {
+            "text": "caseLower()",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "What is the correct way to create a list in Python?",
         "difficulty": 0.2,
+        "bloomTaxonomy": "Remember",
         "explanation": "Lists in Python are created using square brackets []. They can contain elements of different types and are mutable.",
         "options": [
-          { "text": "list = (1, 2, 3)", "isCorrect": false },
-          { "text": "list = {1, 2, 3}", "isCorrect": false },
-          { "text": "list = [1, 2, 3]", "isCorrect": true },
-          { "text": "list = <1, 2, 3>", "isCorrect": false }
+          {
+            "text": "list = (1, 2, 3)",
+            "isCorrect": false
+          },
+          {
+            "text": "list = {1, 2, 3}",
+            "isCorrect": false
+          },
+          {
+            "text": "list = [1, 2, 3]",
+            "isCorrect": true
+          },
+          {
+            "text": "list = <1, 2, 3>",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "What keyword is used to define a function in Python?",
         "difficulty": 0.15,
+        "bloomTaxonomy": "Remember",
         "explanation": "The 'def' keyword is used to define functions in Python, followed by the function name and parentheses containing parameters.",
         "options": [
-          { "text": "function", "isCorrect": false },
-          { "text": "def", "isCorrect": true },
-          { "text": "func", "isCorrect": false },
-          { "text": "define", "isCorrect": false }
+          {
+            "text": "function",
+            "isCorrect": false
+          },
+          {
+            "text": "def",
+            "isCorrect": true
+          },
+          {
+            "text": "func",
+            "isCorrect": false
+          },
+          {
+            "text": "define",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "What will len([1, 2, 3, 4]) return?",
         "difficulty": 0.1,
+        "bloomTaxonomy": "Remember",
         "explanation": "The len() function returns the number of items in a container. The list [1, 2, 3, 4] has 4 elements.",
         "options": [
-          { "text": "3", "isCorrect": false },
-          { "text": "4", "isCorrect": true },
-          { "text": "5", "isCorrect": false },
-          { "text": "Error", "isCorrect": false }
+          {
+            "text": "3",
+            "isCorrect": false
+          },
+          {
+            "text": "4",
+            "isCorrect": true
+          },
+          {
+            "text": "5",
+            "isCorrect": false
+          },
+          {
+            "text": "Error",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "Which operator is used for exponentiation in Python?",
         "difficulty": 0.35,
+        "bloomTaxonomy": "Remember",
         "explanation": "The ** operator is used for exponentiation. For example, 2**3 equals 8 (2 to the power of 3).",
         "options": [
-          { "text": "^", "isCorrect": false },
-          { "text": "**", "isCorrect": true },
-          { "text": "exp()", "isCorrect": false },
-          { "text": "pow", "isCorrect": false }
+          {
+            "text": "^",
+            "isCorrect": false
+          },
+          {
+            "text": "**",
+            "isCorrect": true
+          },
+          {
+            "text": "exp()",
+            "isCorrect": false
+          },
+          {
+            "text": "pow",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "What is the output of: print('Hello' + 'World')?",
         "difficulty": 0.2,
+        "bloomTaxonomy": "Understand",
         "explanation": "The + operator concatenates strings in Python. 'Hello' + 'World' results in 'HelloWorld' (no space between).",
         "options": [
-          { "text": "Hello World", "isCorrect": false },
-          { "text": "HelloWorld", "isCorrect": true },
-          { "text": "Hello+World", "isCorrect": false },
-          { "text": "Error", "isCorrect": false }
+          {
+            "text": "Hello World",
+            "isCorrect": false
+          },
+          {
+            "text": "HelloWorld",
+            "isCorrect": true
+          },
+          {
+            "text": "Hello+World",
+            "isCorrect": false
+          },
+          {
+            "text": "Error",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "Which of these is NOT a valid Python data type?",
         "difficulty": 0.3,
+        "bloomTaxonomy": "Remember",
         "explanation": "Python has int, float, and str as built-in data types. 'char' is not a separate data type in Python; single characters are just strings of length 1.",
         "options": [
-          { "text": "int", "isCorrect": false },
-          { "text": "float", "isCorrect": false },
-          { "text": "char", "isCorrect": true },
-          { "text": "str", "isCorrect": false }
+          {
+            "text": "int",
+            "isCorrect": false
+          },
+          {
+            "text": "float",
+            "isCorrect": false
+          },
+          {
+            "text": "char",
+            "isCorrect": true
+          },
+          {
+            "text": "str",
+            "isCorrect": false
+          }
         ]
       }
     ]
@@ -120,111 +250,241 @@
       {
         "text": "What is the correct syntax for an if statement in Python?",
         "difficulty": 0.2,
+        "bloomTaxonomy": "Remember",
         "explanation": "Python uses 'if condition:' with a colon at the end. The code block is indented below. No parentheses are required around the condition.",
         "options": [
-          { "text": "if (x > 5) {", "isCorrect": false },
-          { "text": "if x > 5:", "isCorrect": true },
-          { "text": "if x > 5 then", "isCorrect": false },
-          { "text": "if x > 5", "isCorrect": false }
+          {
+            "text": "if (x > 5) {",
+            "isCorrect": false
+          },
+          {
+            "text": "if x > 5:",
+            "isCorrect": true
+          },
+          {
+            "text": "if x > 5 then",
+            "isCorrect": false
+          },
+          {
+            "text": "if x > 5",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "Which keyword is used to exit a loop prematurely?",
         "difficulty": 0.25,
+        "bloomTaxonomy": "Remember",
         "explanation": "The 'break' statement is used to exit a loop before it has completed all iterations. It immediately terminates the innermost loop.",
         "options": [
-          { "text": "exit", "isCorrect": false },
-          { "text": "break", "isCorrect": true },
-          { "text": "stop", "isCorrect": false },
-          { "text": "end", "isCorrect": false }
+          {
+            "text": "exit",
+            "isCorrect": false
+          },
+          {
+            "text": "break",
+            "isCorrect": true
+          },
+          {
+            "text": "stop",
+            "isCorrect": false
+          },
+          {
+            "text": "end",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "What does the 'continue' statement do in a loop?",
         "difficulty": 0.3,
+        "bloomTaxonomy": "Understand",
         "explanation": "The 'continue' statement skips the rest of the current iteration and moves to the next iteration of the loop.",
         "options": [
-          { "text": "Exits the loop completely", "isCorrect": false },
-          { "text": "Skips to the next iteration", "isCorrect": true },
-          { "text": "Restarts the loop from the beginning", "isCorrect": false },
-          { "text": "Pauses the loop", "isCorrect": false }
+          {
+            "text": "Exits the loop completely",
+            "isCorrect": false
+          },
+          {
+            "text": "Skips to the next iteration",
+            "isCorrect": true
+          },
+          {
+            "text": "Restarts the loop from the beginning",
+            "isCorrect": false
+          },
+          {
+            "text": "Pauses the loop",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "What is the output of this code?\nfor i in range(3):\n    print(i)",
         "difficulty": 0.3,
+        "bloomTaxonomy": "Apply",
         "explanation": "range(3) generates numbers from 0 to 2 (3 is excluded). So the loop prints 0, 1, and 2 on separate lines.",
         "options": [
-          { "text": "1 2 3", "isCorrect": false },
-          { "text": "0 1 2", "isCorrect": true },
-          { "text": "0 1 2 3", "isCorrect": false },
-          { "text": "1 2", "isCorrect": false }
+          {
+            "text": "1 2 3",
+            "isCorrect": false
+          },
+          {
+            "text": "0 1 2",
+            "isCorrect": true
+          },
+          {
+            "text": "0 1 2 3",
+            "isCorrect": false
+          },
+          {
+            "text": "1 2",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "Which loop is guaranteed to execute at least once?",
         "difficulty": 0.5,
+        "bloomTaxonomy": "Analyze",
         "explanation": "Python doesn't have a do-while loop. Both 'for' and 'while' loops check the condition before executing, so none are guaranteed to run at least once in Python.",
         "options": [
-          { "text": "for loop", "isCorrect": false },
-          { "text": "while loop", "isCorrect": false },
-          { "text": "do-while loop", "isCorrect": false },
-          { "text": "None of the above", "isCorrect": true }
+          {
+            "text": "for loop",
+            "isCorrect": false
+          },
+          {
+            "text": "while loop",
+            "isCorrect": false
+          },
+          {
+            "text": "do-while loop",
+            "isCorrect": false
+          },
+          {
+            "text": "None of the above",
+            "isCorrect": true
+          }
         ]
       },
       {
         "text": "What is the purpose of the 'else' clause in a Python loop?",
         "difficulty": 0.6,
+        "bloomTaxonomy": "Understand",
         "explanation": "The else clause of a loop executes only if the loop completes normally (without encountering a break statement). It's a unique Python feature.",
         "options": [
-          { "text": "Executes if the loop never runs", "isCorrect": false },
-          { "text": "Executes if the loop completes normally (no break)", "isCorrect": true },
-          { "text": "Executes on every iteration", "isCorrect": false },
-          { "text": "Executes if a break occurs", "isCorrect": false }
+          {
+            "text": "Executes if the loop never runs",
+            "isCorrect": false
+          },
+          {
+            "text": "Executes if the loop completes normally (no break)",
+            "isCorrect": true
+          },
+          {
+            "text": "Executes on every iteration",
+            "isCorrect": false
+          },
+          {
+            "text": "Executes if a break occurs",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "What will be the output?\nx = 5\nif x > 3:\n    print('A')\nelif x > 7:\n    print('B')\nelse:\n    print('C')",
         "difficulty": 0.35,
+        "bloomTaxonomy": "Apply",
         "explanation": "x is 5, which is greater than 3, so the first condition is true. Python executes 'print(A)' and skips the rest of the if-elif-else chain.",
         "options": [
-          { "text": "A", "isCorrect": true },
-          { "text": "B", "isCorrect": false },
-          { "text": "C", "isCorrect": false },
-          { "text": "A B", "isCorrect": false }
+          {
+            "text": "A",
+            "isCorrect": true
+          },
+          {
+            "text": "B",
+            "isCorrect": false
+          },
+          {
+            "text": "C",
+            "isCorrect": false
+          },
+          {
+            "text": "A B",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "How do you create an infinite loop in Python?",
         "difficulty": 0.4,
+        "bloomTaxonomy": "Remember",
         "explanation": "while True creates an infinite loop because the condition is always true. You need a break statement or external interruption to exit it.",
         "options": [
-          { "text": "while (1)", "isCorrect": false },
-          { "text": "for i in infinity:", "isCorrect": false },
-          { "text": "while True:", "isCorrect": true },
-          { "text": "loop forever:", "isCorrect": false }
+          {
+            "text": "while (1)",
+            "isCorrect": false
+          },
+          {
+            "text": "for i in infinity:",
+            "isCorrect": false
+          },
+          {
+            "text": "while True:",
+            "isCorrect": true
+          },
+          {
+            "text": "loop forever:",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "What does 'pass' do in Python?",
         "difficulty": 0.35,
+        "bloomTaxonomy": "Understand",
         "explanation": "The 'pass' statement is a null operation - it does nothing. It's used as a placeholder where syntax requires a statement but no action is needed.",
         "options": [
-          { "text": "Skips the current iteration", "isCorrect": false },
-          { "text": "Exits the loop", "isCorrect": false },
-          { "text": "Does nothing (placeholder)", "isCorrect": true },
-          { "text": "Raises an exception", "isCorrect": false }
+          {
+            "text": "Skips the current iteration",
+            "isCorrect": false
+          },
+          {
+            "text": "Exits the loop",
+            "isCorrect": false
+          },
+          {
+            "text": "Does nothing (placeholder)",
+            "isCorrect": true
+          },
+          {
+            "text": "Raises an exception",
+            "isCorrect": false
+          }
         ]
       },
       {
         "text": "What is the output?\nfor i in range(2, 6, 2):\n    print(i)",
         "difficulty": 0.4,
+        "bloomTaxonomy": "Apply",
         "explanation": "range(2, 6, 2) starts at 2, stops before 6, and increments by 2. This produces 2 and 4.",
         "options": [
-          { "text": "2 4 6", "isCorrect": false },
-          { "text": "2 4", "isCorrect": true },
-          { "text": "2 3 4 5", "isCorrect": false },
-          { "text": "0 2 4", "isCorrect": false }
+          {
+            "text": "2 4 6",
+            "isCorrect": false
+          },
+          {
+            "text": "2 4",
+            "isCorrect": true
+          },
+          {
+            "text": "2 3 4 5",
+            "isCorrect": false
+          },
+          {
+            "text": "0 2 4",
+            "isCorrect": false
+          }
         ]
       }
     ]
@@ -237,110 +497,240 @@
         "difficulty": 0.4,
         "explanation": "Lists are mutable (can be modified after creation) while tuples are immutable (cannot be changed after creation). This is the fundamental difference.",
         "options": [
-          { "text": "Lists are faster", "isCorrect": false },
-          { "text": "Tuples are mutable, lists are not", "isCorrect": false },
-          { "text": "Lists are mutable, tuples are not", "isCorrect": true },
-          { "text": "They are the same", "isCorrect": false }
-        ]
+          {
+            "text": "Lists are faster",
+            "isCorrect": false
+          },
+          {
+            "text": "Tuples are mutable, lists are not",
+            "isCorrect": false
+          },
+          {
+            "text": "Lists are mutable, tuples are not",
+            "isCorrect": true
+          },
+          {
+            "text": "They are the same",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       },
       {
         "text": "How do you access the last element of a list called 'mylist'?",
         "difficulty": 0.35,
         "explanation": "Negative indexing in Python allows you to access elements from the end. -1 refers to the last element, -2 to second-to-last, etc.",
         "options": [
-          { "text": "mylist[end]", "isCorrect": false },
-          { "text": "mylist[-1]", "isCorrect": true },
-          { "text": "mylist[last]", "isCorrect": false },
-          { "text": "mylist[len-1]", "isCorrect": false }
-        ]
+          {
+            "text": "mylist[end]",
+            "isCorrect": false
+          },
+          {
+            "text": "mylist[-1]",
+            "isCorrect": true
+          },
+          {
+            "text": "mylist[last]",
+            "isCorrect": false
+          },
+          {
+            "text": "mylist[len-1]",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Remember"
       },
       {
         "text": "Which method adds an element to the end of a list?",
         "difficulty": 0.25,
         "explanation": "The append() method adds a single element to the end of a list. It modifies the list in place and returns None.",
         "options": [
-          { "text": "add()", "isCorrect": false },
-          { "text": "append()", "isCorrect": true },
-          { "text": "insert()", "isCorrect": false },
-          { "text": "push()", "isCorrect": false }
-        ]
+          {
+            "text": "add()",
+            "isCorrect": false
+          },
+          {
+            "text": "append()",
+            "isCorrect": true
+          },
+          {
+            "text": "insert()",
+            "isCorrect": false
+          },
+          {
+            "text": "push()",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Remember"
       },
       {
         "text": "What will {'a': 1, 'b': 2}.keys() return?",
         "difficulty": 0.4,
         "explanation": "The keys() method returns a view object containing all the keys in the dictionary. In this case, it's dict_keys(['a', 'b']).",
         "options": [
-          { "text": "['a', 'b']", "isCorrect": false },
-          { "text": "('a', 'b')", "isCorrect": false },
-          { "text": "dict_keys(['a', 'b'])", "isCorrect": true },
-          { "text": "[1, 2]", "isCorrect": false }
-        ]
+          {
+            "text": "['a', 'b']",
+            "isCorrect": false
+          },
+          {
+            "text": "('a', 'b')",
+            "isCorrect": false
+          },
+          {
+            "text": "dict_keys(['a', 'b'])",
+            "isCorrect": true
+          },
+          {
+            "text": "[1, 2]",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       },
       {
         "text": "How do you create an empty set in Python?",
         "difficulty": 0.5,
         "explanation": "{} creates an empty dictionary, not a set. To create an empty set, you must use set(). For non-empty sets, you can use {1, 2, 3}.",
         "options": [
-          { "text": "{}", "isCorrect": false },
-          { "text": "set()", "isCorrect": true },
-          { "text": "[]", "isCorrect": false },
-          { "text": "Set()", "isCorrect": false }
-        ]
+          {
+            "text": "{}",
+            "isCorrect": false
+          },
+          {
+            "text": "set()",
+            "isCorrect": true
+          },
+          {
+            "text": "[]",
+            "isCorrect": false
+          },
+          {
+            "text": "Set()",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Remember"
       },
       {
         "text": "What is list slicing [1:4] used for?",
         "difficulty": 0.45,
         "explanation": "List slicing [1:4] gets elements from index 1 up to (but not including) index 4. So it returns elements at indices 1, 2, and 3.",
         "options": [
-          { "text": "Gets elements from index 1 to 4 inclusive", "isCorrect": false },
-          { "text": "Gets elements from index 1 to 3", "isCorrect": true },
-          { "text": "Gets elements from index 0 to 3", "isCorrect": false },
-          { "text": "Gets the element at index 1 and 4", "isCorrect": false }
-        ]
+          {
+            "text": "Gets elements from index 1 to 4 inclusive",
+            "isCorrect": false
+          },
+          {
+            "text": "Gets elements from index 1 to 3",
+            "isCorrect": true
+          },
+          {
+            "text": "Gets elements from index 0 to 3",
+            "isCorrect": false
+          },
+          {
+            "text": "Gets the element at index 1 and 4",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       },
       {
         "text": "Which data structure does NOT allow duplicate values?",
         "difficulty": 0.4,
         "explanation": "Sets automatically remove duplicates. If you try to add a duplicate value to a set, it will be ignored. Lists, tuples, and dicts allow duplicates.",
         "options": [
-          { "text": "List", "isCorrect": false },
-          { "text": "Tuple", "isCorrect": false },
-          { "text": "Set", "isCorrect": true },
-          { "text": "Dictionary", "isCorrect": false }
-        ]
+          {
+            "text": "List",
+            "isCorrect": false
+          },
+          {
+            "text": "Tuple",
+            "isCorrect": false
+          },
+          {
+            "text": "Set",
+            "isCorrect": true
+          },
+          {
+            "text": "Dictionary",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Remember"
       },
       {
         "text": "What does the pop() method do on a list?",
         "difficulty": 0.35,
         "explanation": "pop() removes and returns the last element of a list (or an element at a specified index). It modifies the original list.",
         "options": [
-          { "text": "Adds an element to the end", "isCorrect": false },
-          { "text": "Removes and returns the last element", "isCorrect": true },
-          { "text": "Removes all elements", "isCorrect": false },
-          { "text": "Returns the last element without removing", "isCorrect": false }
-        ]
+          {
+            "text": "Adds an element to the end",
+            "isCorrect": false
+          },
+          {
+            "text": "Removes and returns the last element",
+            "isCorrect": true
+          },
+          {
+            "text": "Removes all elements",
+            "isCorrect": false
+          },
+          {
+            "text": "Returns the last element without removing",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       },
       {
         "text": "How do you get the number of elements in a dictionary?",
         "difficulty": 0.3,
         "explanation": "The len() function works on all container types including dictionaries. For a dict, it returns the number of key-value pairs.",
         "options": [
-          { "text": "dict.size()", "isCorrect": false },
-          { "text": "dict.count()", "isCorrect": false },
-          { "text": "len(dict)", "isCorrect": true },
-          { "text": "dict.length()", "isCorrect": false }
-        ]
+          {
+            "text": "dict.size()",
+            "isCorrect": false
+          },
+          {
+            "text": "dict.count()",
+            "isCorrect": false
+          },
+          {
+            "text": "len(dict)",
+            "isCorrect": true
+          },
+          {
+            "text": "dict.length()",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Remember"
       },
       {
         "text": "What will [1, 2, 3] + [4, 5] produce?",
         "difficulty": 0.3,
         "explanation": "The + operator concatenates lists, combining all elements from both lists into a new list: [1, 2, 3, 4, 5].",
         "options": [
-          { "text": "[1, 2, 3, 4, 5]", "isCorrect": true },
-          { "text": "[[1, 2, 3], [4, 5]]", "isCorrect": false },
-          { "text": "[5, 7, 8]", "isCorrect": false },
-          { "text": "Error", "isCorrect": false }
-        ]
+          {
+            "text": "[1, 2, 3, 4, 5]",
+            "isCorrect": true
+          },
+          {
+            "text": "[[1, 2, 3], [4, 5]]",
+            "isCorrect": false
+          },
+          {
+            "text": "[5, 7, 8]",
+            "isCorrect": false
+          },
+          {
+            "text": "Error",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       }
     ]
   },
@@ -352,110 +742,240 @@
         "difficulty": 0.45,
         "explanation": "If a function doesn't have a return statement, or has 'return' without a value, it returns None by default.",
         "options": [
-          { "text": "0", "isCorrect": false },
-          { "text": "None", "isCorrect": true },
-          { "text": "Empty string", "isCorrect": false },
-          { "text": "Error", "isCorrect": false }
-        ]
+          {
+            "text": "0",
+            "isCorrect": false
+          },
+          {
+            "text": "None",
+            "isCorrect": true
+          },
+          {
+            "text": "Empty string",
+            "isCorrect": false
+          },
+          {
+            "text": "Error",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       },
       {
         "text": "How do you define a function that accepts any number of arguments?",
         "difficulty": 0.6,
         "explanation": "*args allows a function to accept any number of positional arguments. They are received as a tuple inside the function.",
         "options": [
-          { "text": "def func(*args):", "isCorrect": true },
-          { "text": "def func(args[]):", "isCorrect": false },
-          { "text": "def func(...args):", "isCorrect": false },
-          { "text": "def func(unlimited args):", "isCorrect": false }
-        ]
+          {
+            "text": "def func(*args):",
+            "isCorrect": true
+          },
+          {
+            "text": "def func(args[]):",
+            "isCorrect": false
+          },
+          {
+            "text": "def func(...args):",
+            "isCorrect": false
+          },
+          {
+            "text": "def func(unlimited args):",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Remember"
       },
       {
         "text": "What is a lambda function?",
         "difficulty": 0.5,
         "explanation": "Lambda functions are anonymous (unnamed) functions defined using the lambda keyword. They can have any number of arguments but only one expression.",
         "options": [
-          { "text": "A function that calls itself", "isCorrect": false },
-          { "text": "An anonymous function", "isCorrect": true },
-          { "text": "A built-in function", "isCorrect": false },
-          { "text": "A function without parameters", "isCorrect": false }
-        ]
+          {
+            "text": "A function that calls itself",
+            "isCorrect": false
+          },
+          {
+            "text": "An anonymous function",
+            "isCorrect": true
+          },
+          {
+            "text": "A built-in function",
+            "isCorrect": false
+          },
+          {
+            "text": "A function without parameters",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       },
       {
         "text": "What is the correct syntax for a lambda function that squares a number?",
         "difficulty": 0.55,
         "explanation": "Lambda syntax is: lambda parameters: expression. So lambda x: x**2 takes one parameter x and returns x squared.",
         "options": [
-          { "text": "lambda x: x**2", "isCorrect": true },
-          { "text": "lambda(x) { return x**2 }", "isCorrect": false },
-          { "text": "def lambda x: x**2", "isCorrect": false },
-          { "text": "lambda x => x**2", "isCorrect": false }
-        ]
+          {
+            "text": "lambda x: x**2",
+            "isCorrect": true
+          },
+          {
+            "text": "lambda(x) { return x**2 }",
+            "isCorrect": false
+          },
+          {
+            "text": "def lambda x: x**2",
+            "isCorrect": false
+          },
+          {
+            "text": "lambda x => x**2",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Apply"
       },
       {
         "text": "What does **kwargs allow in a function definition?",
         "difficulty": 0.65,
         "explanation": "**kwargs allows a function to accept any number of keyword arguments. They are received as a dictionary inside the function.",
         "options": [
-          { "text": "Unlimited positional arguments", "isCorrect": false },
-          { "text": "Unlimited keyword arguments", "isCorrect": true },
-          { "text": "Optional arguments", "isCorrect": false },
-          { "text": "Required arguments", "isCorrect": false }
-        ]
+          {
+            "text": "Unlimited positional arguments",
+            "isCorrect": false
+          },
+          {
+            "text": "Unlimited keyword arguments",
+            "isCorrect": true
+          },
+          {
+            "text": "Optional arguments",
+            "isCorrect": false
+          },
+          {
+            "text": "Required arguments",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       },
       {
         "text": "What is the scope of a variable defined inside a function?",
         "difficulty": 0.4,
         "explanation": "Variables defined inside a function are local to that function. They cannot be accessed from outside the function unless returned.",
         "options": [
-          { "text": "Global", "isCorrect": false },
-          { "text": "Local to the function", "isCorrect": true },
-          { "text": "Available everywhere", "isCorrect": false },
-          { "text": "Depends on the variable name", "isCorrect": false }
-        ]
+          {
+            "text": "Global",
+            "isCorrect": false
+          },
+          {
+            "text": "Local to the function",
+            "isCorrect": true
+          },
+          {
+            "text": "Available everywhere",
+            "isCorrect": false
+          },
+          {
+            "text": "Depends on the variable name",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       },
       {
         "text": "What is recursion?",
         "difficulty": 0.5,
         "explanation": "Recursion is when a function calls itself. It needs a base case to stop the recursion, otherwise it will cause infinite recursion.",
         "options": [
-          { "text": "A function calling another function", "isCorrect": false },
-          { "text": "A function calling itself", "isCorrect": true },
-          { "text": "A loop inside a function", "isCorrect": false },
-          { "text": "Repeated function calls", "isCorrect": false }
-        ]
+          {
+            "text": "A function calling another function",
+            "isCorrect": false
+          },
+          {
+            "text": "A function calling itself",
+            "isCorrect": true
+          },
+          {
+            "text": "A loop inside a function",
+            "isCorrect": false
+          },
+          {
+            "text": "Repeated function calls",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       },
       {
         "text": "How do you specify a default value for a function parameter?",
         "difficulty": 0.35,
         "explanation": "Default values are specified in the function definition using the = operator. For example: def func(x, y=5): assigns 5 as default for y.",
         "options": [
-          { "text": "def func(x, y=5):", "isCorrect": true },
-          { "text": "def func(x, y:5):", "isCorrect": false },
-          { "text": "def func(x, default y=5):", "isCorrect": false },
-          { "text": "def func(x, y|5):", "isCorrect": false }
-        ]
+          {
+            "text": "def func(x, y=5):",
+            "isCorrect": true
+          },
+          {
+            "text": "def func(x, y:5):",
+            "isCorrect": false
+          },
+          {
+            "text": "def func(x, default y=5):",
+            "isCorrect": false
+          },
+          {
+            "text": "def func(x, y|5):",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Remember"
       },
       {
         "text": "What is the output?\ndef func(x=[]):\n    x.append(1)\n    return x\nprint(func())\nprint(func())",
         "difficulty": 0.75,
         "explanation": "This is a tricky one! Default mutable arguments are evaluated once at function definition. The same list is used across calls, so it accumulates values: [1] then [1, 1].",
         "options": [
-          { "text": "[1] [1]", "isCorrect": false },
-          { "text": "[1] [1, 1]", "isCorrect": true },
-          { "text": "Error", "isCorrect": false },
-          { "text": "[1, 1] [1, 1, 1]", "isCorrect": false }
-        ]
+          {
+            "text": "[1] [1]",
+            "isCorrect": false
+          },
+          {
+            "text": "[1] [1, 1]",
+            "isCorrect": true
+          },
+          {
+            "text": "Error",
+            "isCorrect": false
+          },
+          {
+            "text": "[1, 1] [1, 1, 1]",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Analyze"
       },
       {
         "text": "What does the 'global' keyword do?",
         "difficulty": 0.5,
         "explanation": "The 'global' keyword allows you to modify a global variable from inside a function. Without it, assignment creates a new local variable.",
         "options": [
-          { "text": "Makes a variable available everywhere", "isCorrect": false },
-          { "text": "Allows modification of global variables inside a function", "isCorrect": true },
-          { "text": "Creates a global constant", "isCorrect": false },
-          { "text": "Deletes a variable", "isCorrect": false }
-        ]
+          {
+            "text": "Makes a variable available everywhere",
+            "isCorrect": false
+          },
+          {
+            "text": "Allows modification of global variables inside a function",
+            "isCorrect": true
+          },
+          {
+            "text": "Creates a global constant",
+            "isCorrect": false
+          },
+          {
+            "text": "Deletes a variable",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       }
     ]
   },
@@ -467,110 +987,240 @@
         "difficulty": 0.2,
         "explanation": "The 'class' keyword is used to define a class in Python. Class names conventionally use PascalCase (first letter capitalized).",
         "options": [
-          { "text": "class", "isCorrect": true },
-          { "text": "Class", "isCorrect": false },
-          { "text": "object", "isCorrect": false },
-          { "text": "def", "isCorrect": false }
-        ]
+          {
+            "text": "class",
+            "isCorrect": true
+          },
+          {
+            "text": "Class",
+            "isCorrect": false
+          },
+          {
+            "text": "object",
+            "isCorrect": false
+          },
+          {
+            "text": "def",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Remember"
       },
       {
         "text": "What is the purpose of the __init__ method?",
         "difficulty": 0.45,
         "explanation": "__init__ is the constructor method that initializes new objects. It's called automatically when you create an instance of a class.",
         "options": [
-          { "text": "To delete an object", "isCorrect": false },
-          { "text": "To initialize a new object", "isCorrect": true },
-          { "text": "To define class methods", "isCorrect": false },
-          { "text": "To inherit from another class", "isCorrect": false }
-        ]
+          {
+            "text": "To delete an object",
+            "isCorrect": false
+          },
+          {
+            "text": "To initialize a new object",
+            "isCorrect": true
+          },
+          {
+            "text": "To define class methods",
+            "isCorrect": false
+          },
+          {
+            "text": "To inherit from another class",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       },
       {
         "text": "What does 'self' represent in a class method?",
         "difficulty": 0.4,
         "explanation": "'self' refers to the instance of the class. It's used to access instance variables and methods. It must be the first parameter of instance methods.",
         "options": [
-          { "text": "The class itself", "isCorrect": false },
-          { "text": "The current instance of the class", "isCorrect": true },
-          { "text": "The parent class", "isCorrect": false },
-          { "text": "A keyword for private variables", "isCorrect": false }
-        ]
+          {
+            "text": "The class itself",
+            "isCorrect": false
+          },
+          {
+            "text": "The current instance of the class",
+            "isCorrect": true
+          },
+          {
+            "text": "The parent class",
+            "isCorrect": false
+          },
+          {
+            "text": "A keyword for private variables",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       },
       {
         "text": "How do you create an instance of a class named 'Car'?",
         "difficulty": 0.3,
         "explanation": "To create an instance, you call the class name like a function. This calls the __init__ method if it exists.",
         "options": [
-          { "text": "new Car()", "isCorrect": false },
-          { "text": "Car()", "isCorrect": true },
-          { "text": "create Car()", "isCorrect": false },
-          { "text": "instance Car()", "isCorrect": false }
-        ]
+          {
+            "text": "new Car()",
+            "isCorrect": false
+          },
+          {
+            "text": "Car()",
+            "isCorrect": true
+          },
+          {
+            "text": "create Car()",
+            "isCorrect": false
+          },
+          {
+            "text": "instance Car()",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Remember"
       },
       {
         "text": "What is inheritance in OOP?",
         "difficulty": 0.5,
         "explanation": "Inheritance allows a class (child/subclass) to inherit attributes and methods from another class (parent/superclass), promoting code reuse.",
         "options": [
-          { "text": "Creating multiple instances of a class", "isCorrect": false },
-          { "text": "A class inheriting from another class", "isCorrect": true },
-          { "text": "Passing data between classes", "isCorrect": false },
-          { "text": "Defining private variables", "isCorrect": false }
-        ]
+          {
+            "text": "Creating multiple instances of a class",
+            "isCorrect": false
+          },
+          {
+            "text": "A class inheriting from another class",
+            "isCorrect": true
+          },
+          {
+            "text": "Passing data between classes",
+            "isCorrect": false
+          },
+          {
+            "text": "Defining private variables",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       },
       {
         "text": "How do you inherit from a parent class named 'Animal'?",
         "difficulty": 0.45,
         "explanation": "To inherit from a class, you put the parent class name in parentheses after the child class name: class Dog(Animal):",
         "options": [
-          { "text": "class Dog extends Animal:", "isCorrect": false },
-          { "text": "class Dog(Animal):", "isCorrect": true },
-          { "text": "class Dog inherits Animal:", "isCorrect": false },
-          { "text": "class Dog <- Animal:", "isCorrect": false }
-        ]
+          {
+            "text": "class Dog extends Animal:",
+            "isCorrect": false
+          },
+          {
+            "text": "class Dog(Animal):",
+            "isCorrect": true
+          },
+          {
+            "text": "class Dog inherits Animal:",
+            "isCorrect": false
+          },
+          {
+            "text": "class Dog <- Animal:",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Remember"
       },
       {
         "text": "What is encapsulation?",
         "difficulty": 0.55,
         "explanation": "Encapsulation is the bundling of data (attributes) and methods that operate on that data within a class, and restricting direct access to some components.",
         "options": [
-          { "text": "Hiding implementation details", "isCorrect": true },
-          { "text": "Creating multiple classes", "isCorrect": false },
-          { "text": "Inheriting from parent classes", "isCorrect": false },
-          { "text": "Overriding methods", "isCorrect": false }
-        ]
+          {
+            "text": "Hiding implementation details",
+            "isCorrect": true
+          },
+          {
+            "text": "Creating multiple classes",
+            "isCorrect": false
+          },
+          {
+            "text": "Inheriting from parent classes",
+            "isCorrect": false
+          },
+          {
+            "text": "Overriding methods",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       },
       {
         "text": "How do you make a variable 'private' in Python?",
         "difficulty": 0.6,
         "explanation": "Python doesn't have true private variables, but prefixing with double underscore __ triggers name mangling, making it harder to access from outside the class.",
         "options": [
-          { "text": "private var_name", "isCorrect": false },
-          { "text": "var_name", "isCorrect": false },
-          { "text": "__var_name", "isCorrect": true },
-          { "text": "_var_name", "isCorrect": false }
-        ]
+          {
+            "text": "private var_name",
+            "isCorrect": false
+          },
+          {
+            "text": "var_name",
+            "isCorrect": false
+          },
+          {
+            "text": "__var_name",
+            "isCorrect": true
+          },
+          {
+            "text": "_var_name",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Remember"
       },
       {
         "text": "What is polymorphism?",
         "difficulty": 0.65,
         "explanation": "Polymorphism allows objects of different classes to be treated as objects of a common parent class, and allows methods to behave differently based on the object.",
         "options": [
-          { "text": "Having multiple methods with the same name", "isCorrect": false },
-          { "text": "Objects taking many forms", "isCorrect": true },
-          { "text": "Creating many instances", "isCorrect": false },
-          { "text": "Multiple inheritance", "isCorrect": false }
-        ]
+          {
+            "text": "Having multiple methods with the same name",
+            "isCorrect": false
+          },
+          {
+            "text": "Objects taking many forms",
+            "isCorrect": true
+          },
+          {
+            "text": "Creating many instances",
+            "isCorrect": false
+          },
+          {
+            "text": "Multiple inheritance",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       },
       {
         "text": "What is the purpose of the super() function?",
         "difficulty": 0.55,
         "explanation": "super() is used to call methods from the parent class. It's commonly used in __init__ to initialize the parent class before adding child-specific initialization.",
         "options": [
-          { "text": "To create a superclass", "isCorrect": false },
-          { "text": "To call parent class methods", "isCorrect": true },
-          { "text": "To make a method powerful", "isCorrect": false },
-          { "text": "To override methods", "isCorrect": false }
-        ]
+          {
+            "text": "To create a superclass",
+            "isCorrect": false
+          },
+          {
+            "text": "To call parent class methods",
+            "isCorrect": true
+          },
+          {
+            "text": "To make a method powerful",
+            "isCorrect": false
+          },
+          {
+            "text": "To override methods",
+            "isCorrect": false
+          }
+        ],
+        "bloomTaxonomy": "Understand"
       }
     ]
   }

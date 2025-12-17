@@ -2,7 +2,7 @@
 
 Intelligent adaptive learning platform with **Bayesian-optimized Contextual Bandit** + **3PL IRT** for personalized question selection and AI-powered feedback.
 
-**Status**: ✅ Production Ready | **Version**: 4.0 (Research-Validated) | **Tests**: 158 passing | **Validation**: 14/14 targets met
+**Status**: ✅ Production Ready | **Version**: 5.0 (Multi-Course Platform) | **Tests**: 158 passing | **Validation**: 14/14 targets met
 
 ---
 

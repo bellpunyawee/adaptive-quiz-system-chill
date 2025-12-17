@@ -17,8 +17,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Upload, X, Loader2, ArrowLeft, Save } from 'lucide-react';
+import { Upload, X, Loader2, ArrowLeft, Save, Eye, Expand } from 'lucide-react';
 import { TagSelector } from '@/components/admin/TagSelector';
+import { DatasetUpload } from '@/components/admin/DatasetUpload';
+import { RichTextEditor } from '@/components/admin/RichTextEditor';
+import { RichTextViewer } from '@/components/admin/RichTextViewer';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface Cell {
   id: string;
@@ -43,6 +52,8 @@ export default function NewQuestionPage() {
   const [bloomTaxonomy, setBloomTaxonomy] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [datasetUrl, setDatasetUrl] = useState<string | null>(null);
+  const [datasetFilename, setDatasetFilename] = useState<string | null>(null);
   const [optionCount, setOptionCount] = useState<'4' | '5'>('4');
   const [options, setOptions] = useState<OptionInput[]>([
     { text: '', isCorrect: false },
@@ -51,6 +62,10 @@ export default function NewQuestionPage() {
     { text: '', isCorrect: true },
   ]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+
+  // Preview modal state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewImageLightbox, setPreviewImageLightbox] = useState(false);
 
   useEffect(() => {
     fetchCells();
@@ -210,6 +225,8 @@ export default function NewQuestionPage() {
           text: questionText,
           explanation: explanation || null,
           imageUrl: imageUrl || null,
+          datasetUrl: datasetUrl || null,
+          datasetFilename: datasetFilename || null,
           bloomTaxonomy: bloomTaxonomy || null,
           cellId,
           options,
@@ -262,19 +279,20 @@ export default function NewQuestionPage() {
               <Label htmlFor="questionText">
                 Question Text <span className="text-destructive">*</span>
               </Label>
-              <Textarea
-                id="questionText"
-                placeholder="Enter the question..."
-                value={questionText}
-                onChange={(e) => setQuestionText(e.target.value)}
-                rows={4}
-                required
+              <p className="text-xs text-muted-foreground mb-2">
+                Use the rich text editor to format your question. You can insert images anywhere in the text, add formatting, lists, and more.
+              </p>
+              <RichTextEditor
+                content={questionText}
+                onChange={setQuestionText}
+                placeholder="Enter your question here... Use the toolbar to format text and insert images."
+                disabled={loading}
               />
             </div>
 
-            {/* Image Upload */}
-            <div className="space-y-2">
-              <Label>Question Image (Optional)</Label>
+            {/* Legacy Image Upload - Hidden but kept for backward compatibility */}
+            <div className="space-y-2 hidden">
+              <Label>Question Image (Optional - Use rich text editor instead)</Label>
               {!imageUrl ? (
                 <div
                   onDrop={handleDrop}
@@ -327,6 +345,27 @@ export default function NewQuestionPage() {
                   </Button>
                 </div>
               )}
+            </div>
+
+            {/* Dataset Upload */}
+            <div className="space-y-2">
+              <Label>Dataset Attachment (Optional)</Label>
+              <DatasetUpload
+                currentDatasetUrl={datasetUrl}
+                currentDatasetFilename={datasetFilename}
+                onUpload={(url, filename) => {
+                  setDatasetUrl(url);
+                  setDatasetFilename(filename);
+                }}
+                onRemove={() => {
+                  setDatasetUrl(null);
+                  setDatasetFilename(null);
+                }}
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Attach a data file (CSV, JSON, Excel) for students to download with this question
+              </p>
             </div>
 
             {/* Topic Selection */}
@@ -471,27 +510,147 @@ export default function NewQuestionPage() {
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-4 mt-6">
-          <Link href="/admin/questions">
-            <Button type="button" variant="outline">
-              Cancel
-            </Button>
-          </Link>
-          <Button type="submit" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Create Question
-              </>
-            )}
+        <div className="flex justify-between items-center mt-6">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setPreviewOpen(true)}
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            Preview Quiz View
           </Button>
+          <div className="flex gap-4">
+            <Link href="/admin/questions">
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </Link>
+            <Button type="submit" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Create Question
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </form>
+
+      {/* Preview Modal */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Quiz Preview - How Students Will See This Question</DialogTitle>
+          </DialogHeader>
+
+          <div className="mt-4">
+            {/* Replicate quiz interface */}
+            <Card className="transition-all">
+              <CardHeader>
+                <CardTitle>Question 1</CardTitle>
+                <div className="pt-4">
+                  {questionText ? (
+                    <RichTextViewer content={questionText} className="text-lg leading-relaxed" />
+                  ) : (
+                    <p className="text-muted-foreground">Question text will appear here...</p>
+                  )}
+                </div>
+                {imageUrl && (
+                  <div
+                    className="relative w-full h-80 mt-6 mb-2 rounded-lg overflow-hidden bg-muted border cursor-pointer hover:shadow-lg transition-shadow group"
+                    onClick={() => setPreviewImageLightbox(true)}
+                    title="Click to view full-screen"
+                  >
+                    <Image
+                      src={imageUrl}
+                      alt="Question illustration"
+                      fill
+                      className="object-contain group-hover:scale-105 transition-transform duration-200"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      unoptimized={true}
+                      priority
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors">
+                      <div className="bg-white/90 dark:bg-black/90 px-3 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium flex items-center gap-2">
+                        <Expand className="h-4 w-4" />
+                        Click to enlarge
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardHeader>
+              <CardContent>
+                <RadioGroup className="space-y-3">
+                  {options.map((option, index) => (
+                    <Label
+                      key={index}
+                      htmlFor={`preview-option-${index}`}
+                      className="flex items-center space-x-3 p-4 border rounded-md cursor-pointer transition-all hover:bg-accent"
+                    >
+                      <RadioGroupItem value={`option-${index}`} id={`preview-option-${index}`} />
+                      <span className="flex-1 text-base">
+                        {option.text || `Option ${index + 1}`}
+                        {option.isCorrect && (
+                          <span className="ml-2 text-xs text-green-600 font-medium">(Correct Answer)</span>
+                        )}
+                      </span>
+                    </Label>
+                  ))}
+                </RadioGroup>
+
+                {options.length === 0 && (
+                  <p className="text-muted-foreground text-center py-8">
+                    No answer options added yet
+                  </p>
+                )}
+
+                {explanation && (
+                  <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="font-semibold text-base mb-2 text-foreground">
+                      💡 Explanation:
+                    </p>
+                    <p className="text-base leading-relaxed text-foreground">
+                      {explanation}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="mt-4 p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
+              <p><strong>Note:</strong> This preview shows how the question will appear to students during a quiz session.</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Lightbox in Preview */}
+      {imageUrl && (
+        <Dialog open={previewImageLightbox} onOpenChange={setPreviewImageLightbox}>
+          <DialogContent className="max-w-[95vw] max-h-[95vh] p-0">
+            <DialogHeader className="px-6 pt-6 pb-2">
+              <DialogTitle>Question Image - Full Screen</DialogTitle>
+            </DialogHeader>
+            <div className="relative w-full h-[80vh] px-6 pb-6">
+              <Image
+                src={imageUrl}
+                alt="Question illustration - full screen"
+                fill
+                className="object-contain"
+                sizes="95vw"
+                unoptimized={true}
+                priority
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

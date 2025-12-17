@@ -38,6 +38,7 @@ export interface QuestionSelectionCriteria {
   cellId: string;
   userId: string;
   quizId?: string;  // Added: to filter by current quiz only
+  courseId?: string; // CRITICAL: Filter by course for multi-course support
   excludeQuestionIds?: string[];
   minDifficulty?: number;
   maxDifficulty?: number;
@@ -76,9 +77,9 @@ export class QuestionPoolManager {
   async getAvailableQuestions(
     criteria: QuestionSelectionCriteria
   ): Promise<Prisma.QuestionGetPayload<{ include: { answerOptions: true } }>[]> {
-    const { cellId, userId, quizId, excludeQuestionIds = [], quizType = 'regular' } = criteria;
+    const { cellId, userId, quizId, courseId, excludeQuestionIds = [], quizType = 'regular' } = criteria;
 
-    console.log(`[POOL] Getting questions for cell: ${cellId}`);
+    console.log(`[POOL] Getting questions for cell: ${cellId}, course: ${courseId || 'not specified'}`);
     console.log(`[POOL] User ID: ${userId}, Quiz ID: ${quizId || 'not specified'}, Quiz Type: ${quizType}`);
 
     // Get questions already answered by this user in THIS quiz only
@@ -148,8 +149,13 @@ export class QuestionPoolManager {
     }
 
     // Check if enhanced fields exist by checking first question
+    const sampleQuestionWhere: any = { cellId };
+    if (courseId) {
+      sampleQuestionWhere.courseId = courseId; // CRITICAL: Course scoping
+    }
+
     const sampleQuestion = await prisma.question.findFirst({
-      where: { cellId }
+      where: sampleQuestionWhere
     });
 
     if (!sampleQuestion) {
@@ -175,6 +181,11 @@ export class QuestionPoolManager {
         isActive: true,
         exposureCount: { lt: this.config.maxExposure }
       };
+
+      // CRITICAL: Add course scoping for multi-course support
+      if (courseId) {
+        whereClause.courseId = courseId;
+      }
 
       // For review mode: ONLY include incorrect questions
       if (quizType === 'practice-review' || quizType === 'review-mistakes') {
@@ -209,6 +220,11 @@ export class QuestionPoolManager {
       console.log('[POOL] Using backwards-compatible mode (basic filtering)');
 
       const whereClause: any = { cellId };
+
+      // CRITICAL: Add course scoping for multi-course support
+      if (courseId) {
+        whereClause.courseId = courseId;
+      }
 
       // For review mode: ONLY include incorrect questions
       if (quizType === 'practice-review' || quizType === 'review-mistakes') {

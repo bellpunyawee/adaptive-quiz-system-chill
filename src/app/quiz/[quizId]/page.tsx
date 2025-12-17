@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, Loader2, X, Clock, AlertTriangle, Home, ChevronRight, Expand } from 'lucide-react';
 import { useStopwatch } from '@/hooks/use-stopwatch';
 import {
@@ -28,14 +29,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { DatasetDownloadButton } from '@/components/quiz/DatasetDownloadButton';
 
 interface Question {
   id: string;
   text: string;
   imageUrl?: string | null;
+  datasetFilename?: string | null;
   options: { id: string; text: string }[];
   totalQuestions: number;
   answeredCount: number;
+  // Transparency metadata
+  topicName?: string;
+  bloomTaxonomy?: string | null;
+  difficultyLabel?: string;
+  selectionMetadata?: {
+    category: string;
+    categoryLabel: string;
+    reasoningText: string;
+  };
 }
 
 interface Feedback {
@@ -53,6 +65,13 @@ type QuizType = 'baseline' | 'practice' | 'practice-review' | 'practice-new' | '
 interface AnswerHistory {
   questionNumber: number;
   isCorrect: boolean;
+}
+
+// Helper function to get badge color for difficulty labels
+function getDifficultyBadgeColor(label: string): string {
+  if (label === 'Easy') return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300';
+  if (label === 'Medium') return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300';
+  return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300';
 }
 
 export default function QuizPage({ params: paramsPromise }: { params: Promise<{ quizId: string }> }) {
@@ -186,6 +205,7 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
           selectedOptionId: selectedOption,
           responseTime: responseTime, // Time in milliseconds
           questionDisplayedAt: displayedAt, // ISO timestamp
+          selectionMetadata: question.selectionMetadata, // For post-quiz transparency
         }),
       });
       if (!res.ok) throw new Error('Failed to submit answer');
@@ -221,6 +241,7 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
           wasSkipped: true,
           responseTime: responseTime,
           questionDisplayedAt: displayedAt,
+          selectionMetadata: question.selectionMetadata, // For post-quiz transparency
         }),
       });
       if (!res.ok) throw new Error('Failed to skip question');
@@ -417,6 +438,28 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
             <CardDescription className="pt-4 text-lg leading-relaxed font-medium text-foreground">
               {question?.text}
             </CardDescription>
+
+            {/* Question Metadata Badges - Configurable */}
+            {process.env.NEXT_PUBLIC_SHOW_QUIZ_METADATA === 'true' && question && (
+              <div className="flex items-center gap-2 mt-4 flex-wrap">
+                {question.topicName && (
+                  <Badge variant="outline" className="text-xs">
+                    Topic: {question.topicName}
+                  </Badge>
+                )}
+                {question.bloomTaxonomy && (
+                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                    {question.bloomTaxonomy}
+                  </Badge>
+                )}
+                {question.difficultyLabel && (
+                  <Badge className={`text-xs ${getDifficultyBadgeColor(question.difficultyLabel)}`}>
+                    {question.difficultyLabel}
+                  </Badge>
+                )}
+              </div>
+            )}
+
             {question?.imageUrl && (
               <div
                 className="relative w-full h-80 mt-6 mb-2 rounded-lg overflow-hidden bg-muted border cursor-pointer hover:shadow-lg transition-shadow group"
@@ -438,6 +481,16 @@ export default function QuizPage({ params: paramsPromise }: { params: Promise<{ 
                     Click to enlarge
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Dataset Download Button */}
+            {question?.datasetFilename && (
+              <div className="mt-4">
+                <DatasetDownloadButton
+                  questionId={question.id}
+                  filename={question.datasetFilename}
+                />
               </div>
             )}
           </CardHeader>
