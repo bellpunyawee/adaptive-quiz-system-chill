@@ -1,28 +1,23 @@
-// src/components/admin/AdminSidebar.tsx
+// src/components/instructor/InstructorSidebar.tsx
 'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
-  Activity,
+  BookOpen,
   Users,
-  Settings,
-  Shield,
-  FileText,
-  BarChart3,
+  PlusCircle,
+  GraduationCap,
   Menu,
   X,
-  FileQuestion,
-  Tags,
-  GraduationCap,
-  Home
+  Home,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
-interface AdminSidebarProps {
+interface InstructorSidebarProps {
   user: {
     name?: string | null;
     email?: string | null;
@@ -33,53 +28,18 @@ interface AdminSidebarProps {
 const navigation = [
   {
     name: 'Dashboard',
-    href: '/admin',
+    href: '/instructor',
     icon: LayoutDashboard,
   },
   {
-    name: 'Questions',
-    href: '/admin/questions',
-    icon: FileQuestion,
-  },
-  {
-    name: 'Tags',
-    href: '/admin/tags',
-    icon: Tags,
-  },
-  {
-    name: 'System Health',
-    href: '/admin/health',
-    icon: Activity,
-  },
-  {
-    name: 'Users',
-    href: '/admin/users',
-    icon: Users,
-  },
-  {
-    name: 'Quiz Logs',
-    href: '/admin/logs',
-    icon: FileText,
-  },
-  {
-    name: 'Analytics',
-    href: '/admin/analytics',
-    icon: BarChart3,
-    badge: 'Soon',
-  },
-  {
-    name: 'Maintenance',
-    href: '/admin/maintenance',
-    icon: Settings,
-  },
-];
-
-const otherLinks = [
-  {
-    name: 'Instructor Panel',
+    name: 'My Courses',
     href: '/instructor',
-    icon: GraduationCap,
-    description: 'Manage courses',
+    icon: BookOpen,
+  },
+  {
+    name: 'Create Course',
+    href: '/instructor/courses/new',
+    icon: PlusCircle,
   },
   {
     name: 'Student Dashboard',
@@ -89,7 +49,7 @@ const otherLinks = [
   },
 ];
 
-export function AdminSidebar({ user }: AdminSidebarProps) {
+export function InstructorSidebar({ user }: InstructorSidebarProps) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -123,10 +83,10 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
         {/* Logo / Brand */}
         <div className="p-6 border-b border-slate-800">
           <div className="flex items-center gap-2">
-            <Shield className="h-8 w-8 text-blue-500" />
+            <GraduationCap className="h-8 w-8 text-blue-500" />
             <div>
-              <h1 className="text-xl font-bold text-white">Admin</h1>
-              <p className="text-xs text-slate-400">Quiz System</p>
+              <h1 className="text-xl font-bold text-white">Instructor</h1>
+              <p className="text-xs text-slate-400">Course Management</p>
             </div>
           </div>
         </div>
@@ -150,51 +110,24 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
                 )}
               >
                 <Icon className="h-5 w-5 flex-shrink-0" />
-                <span className="font-medium">{item.name}</span>
-                {item.badge && (
-                  <span className="ml-auto text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
-                    {item.badge}
-                  </span>
-                )}
+                <div className="flex-1">
+                  <span className="font-medium">{item.name}</span>
+                  {item.description && (
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {item.description}
+                    </p>
+                  )}
+                </div>
               </Link>
             );
           })}
-
-          {/* Divider */}
-          <div className="border-t border-slate-700 my-4" />
-
-          {/* Other Links */}
-          <div className="space-y-1">
-            <p className="px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              Quick Access
-            </p>
-            {otherLinks.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-slate-400 hover:bg-slate-800 hover:text-white"
-                >
-                  <Icon className="h-4 w-4 flex-shrink-0" />
-                  <div className="flex-1">
-                    <span className="text-sm font-medium">{item.name}</span>
-                    {item.description && (
-                      <p className="text-xs text-slate-500">{item.description}</p>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
         </nav>
 
         {/* User Info */}
         <div className="p-4 border-t border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
-              {user.name?.[0]?.toUpperCase() || 'A'}
+              {user.name?.[0]?.toUpperCase() || 'I'}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">
@@ -203,11 +136,18 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
               <p className="text-xs text-slate-400 truncate">{user.email}</p>
             </div>
           </div>
-          <div className="mt-2">
+          <div className="mt-2 flex gap-2">
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-blue-900/50 text-blue-300 border border-blue-800">
-              <Shield className="h-3 w-3" />
-              Admin
+              <GraduationCap className="h-3 w-3" />
+              Instructor
             </span>
+            {user.role === 'admin' && (
+              <Link href="/admin">
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-purple-900/50 text-purple-300 border border-purple-800 hover:bg-purple-800 transition-colors cursor-pointer">
+                  Admin
+                </span>
+              </Link>
+            )}
           </div>
         </div>
       </aside>

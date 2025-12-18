@@ -11,7 +11,7 @@ import { QuizStartDialog } from "@/components/QuizStartDialog";
 import { HowItWorksDialog } from "@/components/HowItWorksDialog";
 import { BaselineAssessmentCTA, BaselineCompletedCard } from "@/components/BaselineAssessmentCTA";
 import { RecentFeedback } from "@/components/dashboard/RecentFeedback";
-import { Settings, Home, ChevronRight, TrendingUp } from "lucide-react";
+import { Settings, Home, ChevronRight, TrendingUp, GraduationCap, UserPlus, Shield } from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -19,12 +19,13 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
-  // Check baseline status
+  // Check baseline status and user role
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
       baselineCompleted: true,
       baselineQuizId: true,
+      role: true,
     },
   });
 
@@ -81,19 +82,52 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen animate-in fade-in duration-300">
       <div className="container mx-auto p-8">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-          <Home className="h-4 w-4" />
-          <ChevronRight className="h-4 w-4" />
-          <span className="font-medium text-foreground">Dashboard</span>
-        </nav>
+        {/* Top Navigation Bar */}
+        <div className="flex items-center justify-between mb-6">
+          {/* Left: Breadcrumb & Quick Actions */}
+          <div className="flex items-center gap-4">
+            <nav className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Home className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" />
+              <span className="font-medium text-foreground">Dashboard</span>
+            </nav>
 
-        {/* Top Bar - Sign Out & Help */}
-        <div className="flex justify-between items-center mb-4">
-          <HowItWorksDialog />
-          <form action={handleSignOut}>
-            <Button variant="ghost" size="sm">Sign Out</Button>
-          </form>
+            {/* Quick Access Buttons */}
+            <div className="flex items-center gap-2">
+              <Link href="/courses/join">
+                <Button variant="outline" size="sm">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Join Course
+                </Button>
+              </Link>
+
+              {(user?.role === 'instructor' || user?.role === 'admin') && (
+                <Link href="/instructor">
+                  <Button variant="outline" size="sm">
+                    <GraduationCap className="h-4 w-4 mr-2" />
+                    Instructor
+                  </Button>
+                </Link>
+              )}
+
+              {user?.role === 'admin' && (
+                <Link href="/admin">
+                  <Button variant="outline" size="sm">
+                    <Shield className="h-4 w-4 mr-2" />
+                    Admin
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Help & Sign Out */}
+          <div className="flex items-center gap-2">
+            <HowItWorksDialog />
+            <form action={handleSignOut}>
+              <Button variant="ghost" size="sm">Sign Out</Button>
+            </form>
+          </div>
         </div>
 
         {/* Header Section */}

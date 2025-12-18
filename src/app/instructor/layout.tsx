@@ -1,13 +1,13 @@
-// src/app/admin/layout.tsx
+// src/app/instructor/layout.tsx
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { InstructorSidebar } from "@/components/instructor/InstructorSidebar";
 import { handleSignOut } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "sonner";
 import prisma from "@/lib/db";
 
-export default async function AdminLayout({
+export default async function InstructorLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -19,20 +19,20 @@ export default async function AdminLayout({
     redirect("/");
   }
 
-  // Check if user has admin role
+  // Check if user has instructor or admin role
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { role: true },
   });
 
-  if (user?.role !== "admin") {
+  if (user?.role !== "instructor" && user?.role !== "admin") {
     redirect("/dashboard");
   }
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
       {/* Sidebar */}
-      <AdminSidebar user={session.user} />
+      <InstructorSidebar user={session.user} />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -41,7 +41,7 @@ export default async function AdminLayout({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                Admin Panel
+                Instructor Panel
               </h2>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Welcome back, {session.user.name}

@@ -24,10 +24,14 @@ Complete documentation for the multi-course adaptive quiz system with Bayesian o
 
 ## 📚 Documentation Index
 
-### Getting Started
+### 📋 Getting Started
+
+**Quick Links**: [getting-started/](getting-started/) | [testing/](testing/) | [features/](features/)
 
 | Document | Description | Audience |
 |----------|-------------|----------|
+| **[getting-started/QUICK_START.md](getting-started/QUICK_START.md)** | Quick setup guide for new users | Everyone |
+| **[getting-started/RECENT_UPDATES_SUMMARY.md](getting-started/RECENT_UPDATES_SUMMARY.md)** | Latest features and changes | Everyone |
 | **[MULTI_COURSE_QUICK_START.md](MULTI_COURSE_QUICK_START.md)** | Multi-course platform setup and configuration | Admins, Instructors |
 | **[ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md)** | Database setup, environment variables, deployment | Developers, DevOps |
 | **[URL_STRUCTURE.md](URL_STRUCTURE.md)** | URL patterns for multi-course navigation | Developers |
@@ -60,18 +64,27 @@ Complete documentation for the multi-course adaptive quiz system with Bayesian o
 | **[CONVERGENCE_CONFIG_GUIDE.md](CONVERGENCE_CONFIG_GUIDE.md)** | Stopping criteria and SEM threshold configuration | Developers |
 | **[PERSONALIZATION_METRICS_GUIDE.md](PERSONALIZATION_METRICS_GUIDE.md)** | Question diversity, student overlap, selection metrics | Researchers |
 
-### Features & Functionality
+### 🎯 Features & Functionality
+
+**Feature Directory**: [features/](features/) - Latest feature implementations
 
 | Document | Description | Audience |
 |----------|-------------|----------|
+| **[features/STUDENT_REPORTS_FEATURE.md](features/STUDENT_REPORTS_FEATURE.md)** ⭐ NEW | Student performance reports and grading exports | Instructors |
+| **[features/NAVIGATION_IMPROVEMENTS.md](features/NAVIGATION_IMPROVEMENTS.md)** ⭐ NEW | Clean navigation UI with role-based access | Everyone |
+| **[features/RICH_TEXT_EDITOR.md](features/RICH_TEXT_EDITOR.md)** ⭐ NEW | Rich text editor for question creation | Instructors, Admins |
 | **[SKIP_QUESTION_FEATURE.md](SKIP_QUESTION_FEATURE.md)** | Skip question functionality and limitations | Users, Instructors |
 | **[PERSONALIZED_FEEDBACK.md](PERSONALIZED_FEEDBACK.md)** | LLM-powered feedback system (Gemini 2.5 Flash) | Developers |
 | **[TAG_MANAGEMENT_GUIDE.md](TAG_MANAGEMENT_GUIDE.md)** | Course-scoped tag system for question organization | Instructors |
 
-### Testing & Evaluation
+### 🧪 Testing & Evaluation
+
+**Testing Directory**: [testing/](testing/) - Test accounts and guides
 
 | Document | Description | Audience |
 |----------|-------------|----------|
+| **[testing/TEST_ACCOUNTS.md](testing/TEST_ACCOUNTS.md)** ⭐ | Pre-configured test accounts for all roles | Everyone |
+| **[testing/TESTING_GUIDE.md](testing/TESTING_GUIDE.md)** ⭐ | Comprehensive test suite (20+ scenarios) | Developers, QA |
 | **[SIMULATION_EVALUATION_GUIDE.md](SIMULATION_EVALUATION_GUIDE.md)** | Monte Carlo simulation methodology and workflows | Researchers |
 
 ### Security & Administration
@@ -198,13 +211,30 @@ See [URL_STRUCTURE.md](URL_STRUCTURE.md) for complete reference.
 
 ---
 
-## 🗂️ Archive
+## 🗂️ Archive & History
 
-Historical documentation has been moved to `docs/archive/`:
+### Implementation History
+
+**Directory**: [implementation-history/](implementation-history/) - Major implementation summaries
+
+Recent implementations:
+
+- [Implementation Complete](implementation-history/IMPLEMENTATION_COMPLETE.md) - Overall system (Dec 17, 2025)
+- [Multi-Course System](implementation-history/IMPLEMENTATION_SUMMARY.md) - Multi-course architecture (Dec 16, 2025)
+- [Instructor System](implementation-history/INSTRUCTOR_SYSTEM_SUMMARY.md) - Instructor features (Dec 17, 2025)
+- [Navigation Visual](implementation-history/NAVIGATION_VISUAL.md) - Navigation diagrams (Dec 17, 2025)
+
+See [implementation-history/README.md](implementation-history/README.md) for complete index.
+
+### Archived Documentation
+
+**Directory**: [archive/](archive/) - Sprint reports and older documentation
+
+Historical documentation:
 - Sprint completion reports
 - Phase validation reports
 - Development progress summaries
-- Implementation milestones
+- Baseline implementation docs
 
 See [archive/README.md](archive/README.md) for archive index.
 

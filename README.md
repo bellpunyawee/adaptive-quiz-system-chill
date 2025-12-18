@@ -1,8 +1,8 @@
 # Adaptive Quiz System
 
-Intelligent adaptive learning platform with **Bayesian-optimized Contextual Bandit** + **3PL IRT** for personalized question selection and AI-powered feedback.
+Intelligent adaptive learning platform with **Bayesian-optimized Contextual Bandit** + **3PL IRT** for personalized question selection and AI-powered personalized feedback.
 
-**Status**: ✅ Production Ready | **Version**: 5.0 (Multi-Course Platform) | **Tests**: 158 passing | **Validation**: 14/14 targets met
+**Version**: 5.0 (Multi-Course Platform) | **Tests**: 158 passing | **Validation**: 14/14 targets met
 
 ---
 
@@ -35,6 +35,8 @@ npm run dev
 # Visit http://localhost:3000
 ```
 
+**Quick Start Guide**: See [docs/getting-started/QUICK_START.md](docs/getting-started/QUICK_START.md)
+
 **Admin Setup**: See [docs/QUICK_START_ADMIN.md](docs/QUICK_START_ADMIN.md)
 
 **Full Guide**: See [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
@@ -43,7 +45,7 @@ npm run dev
 
 ## 🚀 Key Features
 
-### Intelligent Question Selection System
+### Intelligent Question Selection
 
 **What it does:**
 
@@ -61,7 +63,7 @@ Students learn faster because the system always asks questions at the right diff
 2. **Selects optimal questions** - Picks questions that maximize learning while minimizing wasted time
 3. **Adapts in real-time** - Adjusts difficulty as you improve or struggle
 
-### System Validation (Tested with 1,000 Simulated Students)
+### System Validation (Tested with 1,000 Simulated Students and 2,500 from ASSISTments public dataset + 1,600 strategically generated)
 
 **What we measured:**
 
@@ -78,7 +80,7 @@ Students learn faster because the system always asks questions at the right diff
 - ✅ **Reliable** - Never runs out of appropriate questions for your level
 - ✅ **Efficient** - Gets accurate results with fewer questions (saves time)
 
-### Question Pool Quality
+<!-- ### Question Pool Quality
 
 **What we improved:**
 
@@ -89,20 +91,20 @@ Students learn faster because the system always asks questions at the right diff
 | **High-Quality Questions** (clear skill measurement) | 18.9% | 55.8% | +195% better measurement precision |
 
 **Interpretation:**
-Before, the system struggled to find appropriate questions for beginners and advanced students. Now, every student gets questions matched to their level.
+Before, the system struggled to find appropriate questions for beginners and advanced students. Now, every student gets questions matched to their level. -->
 
 ### Additional Features
 
-- **AI-Powered Feedback** - Gemini 2.5 Flash with personalized explanations
+- **AI-Powered Feedback** - Gemini 2.5 Flash with personalized feedback
 - **Exposure Control** - Sympson-Hetter prevents over-use
 - **Real-time Analytics** - Personalization metrics and monitoring
-- **A/B Testing Ready** - Feature flags for gradual rollout
+<!-- - **A/B Testing Ready** - Feature flags for gradual rollout -->
 
 ---
 
 ## 📊 Research Validation & Performance
 
-### Real-World Operational Metrics
+### Operational Metrics
 
 **What we tested:** System performance with 1,000 simulated students across all skill levels
 
@@ -126,7 +128,7 @@ Before, the system struggled to find appropriate questions for beginners and adv
 
 *Full formulations:* See [METRICS_REFERENCE.md](docs/METRICS_REFERENCE.md) for complete mathematical definitions.
 
-### Research-Grade Accuracy Metrics
+### Accuracy Metrics
 
 **What we measured:** Scientific validation using 5-fold cross-validation (gold standard in machine learning)
 
@@ -181,8 +183,6 @@ Before, the system struggled to find appropriate questions for beginners and adv
 *Implementation details:* See `scripts/testing/monte-carlo-contextual-bandit.ts` lines 863-867 for diversity calculation.
 
 ---
-
-**Bottom line:** All 14 validation targets met. System is both scientifically rigorous and operationally reliable.
 
 **Full technical details:** [Complete Results Report](docs/VALIDATION_REPORT.md) | [Reproduction Guide](docs/PUBLICATION_PIPELINE.md)
 
@@ -248,7 +248,7 @@ npm run build          # Production build check
 
 ```bash
 # Full automated pipeline
-./scripts/testing/test-publication-pipeline.sh
+./scripts/testing/run-full-pipeline.bat
 
 # Or Windows:
 scripts\testing\test-publication-pipeline.bat
@@ -331,7 +331,7 @@ Weights evolve from 40% → 97% LinUCB as confidence grows.
 
 ##  Recent Updates
 
-### December 3, 2025 - Content Expansion & Research Validation
+### December, 2025 - Content Expansion & Research Validation
 
 **What we accomplished:**
 
@@ -430,12 +430,33 @@ See [docs/ENVIRONMENT_SETUP.md](docs/ENVIRONMENT_SETUP.md) for complete guide.
 
 ### Quick Reference
 
-- **Set up locally** → [docs/USER_GUIDE.md](docs/USER_GUIDE.md#quick-start)
-- **Understand the algorithms** → [docs/CONTEXTUAL_BANDIT_GUIDE.md](docs/CONTEXTUAL_BANDIT_GUIDE.md)
-- **Reproduce research** → [docs/PUBLICATION_PIPELINE.md](docs/PUBLICATION_PIPELINE.md) ⭐ NEW
-- **Understand metrics** → [docs/METRICS_REFERENCE.md](docs/METRICS_REFERENCE.md) ⭐ NEW
-- **See validation results** → [docs/VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md)
+#### 📚 Getting Started
+
+- **Set up locally** → [docs/getting-started/QUICK_START.md](docs/getting-started/QUICK_START.md)
+- **Recent updates** → [docs/getting-started/RECENT_UPDATES_SUMMARY.md](docs/getting-started/RECENT_UPDATES_SUMMARY.md)
+- **Full user guide** → [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
+
+#### 🎯 Features
+
+- **Student reports** → [docs/features/STUDENT_REPORTS_FEATURE.md](docs/features/STUDENT_REPORTS_FEATURE.md)
+- **Navigation system** → [docs/features/NAVIGATION_IMPROVEMENTS.md](docs/features/NAVIGATION_IMPROVEMENTS.md)
+- **Rich text editor** → [docs/features/RICH_TEXT_EDITOR.md](docs/features/RICH_TEXT_EDITOR.md)
+
+#### 🧪 Testing
+
+- **Test accounts** → [docs/testing/TEST_ACCOUNTS.md](docs/testing/TEST_ACCOUNTS.md)
+- **Testing guide** → [docs/testing/TESTING_GUIDE.md](docs/testing/TESTING_GUIDE.md)
 - **Run tests** → `npm test` or `./scripts/testing/test-publication-pipeline.sh`
+
+#### 🔬 Research & Algorithms
+
+- **Understand the algorithms** → [docs/CONTEXTUAL_BANDIT_GUIDE.md](docs/CONTEXTUAL_BANDIT_GUIDE.md)
+- **Reproduce research** → [docs/PUBLICATION_PIPELINE.md](docs/PUBLICATION_PIPELINE.md)
+- **Understand metrics** → [docs/METRICS_REFERENCE.md](docs/METRICS_REFERENCE.md)
+- **See validation results** → [docs/VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md)
+
+#### 🛠️ Development
+
 - **Use scripts** → [scripts/README.md](scripts/README.md)
 - **Deploy to production** → [docs/ENVIRONMENT_SETUP.md](docs/ENVIRONMENT_SETUP.md)
 - **Report issues** → Create GitHub issue with reproduction steps
@@ -444,8 +465,8 @@ See [docs/ENVIRONMENT_SETUP.md](docs/ENVIRONMENT_SETUP.md) for complete guide.
 
 - `src/lib/contextual-bandit/hybrid.ts` - **Core algorithm** (Bayesian-optimized weights)
 - `src/lib/adaptive-engine/stopping-criteria.ts` - **Convergence logic** (skill-based stopping rules)
-- `docs/PUBLICATION_PIPELINE.md` - **Research reproduction guide** ⭐ (Dec 3)
-- `docs/METRICS_REFERENCE.md` - **Complete metrics dictionary** ⭐ (Dec 3)
+- `docs/PUBLICATION_PIPELINE.md` - **Research reproduction guide**
+- `docs/METRICS_REFERENCE.md` - **Complete metrics dictionary**
 - `docs/VALIDATION_REPORT.md` - **Validation results** (14/14 targets met)
 - `scripts/testing/monte-carlo-phase3.ts` - **Primary simulation** (1,000 students)
 
@@ -478,45 +499,12 @@ See [docs/ENVIRONMENT_SETUP.md](docs/ENVIRONMENT_SETUP.md) for complete guide.
 **Key Papers**:
 
 - Will be updated soon
-<!-- - Li et al. (2010) - LinUCB for Contextual Bandits
-- Birnbaum (1968) - 3PL IRT Model
-- Lord (1980) - Fisher Information in Testing
-- Mockus (1989) - Bayesian Optimization with Gaussian Process -->
-
-**Implementation Scale**:
-
-- ~15,000 lines of TypeScript (production code)
-- 158 automated tests (ensuring reliability)
-- 4,100 curated questions (2,500 from public dataset + 1,600 strategically generated)
-- 15-dimensional personalization (tracking individual learning patterns)
-- 22 research scripts (streamlined from 58—70% reduction for clarity)
-- 23 documentation files (19 core + 4 new validation guides)
-
-**Research Validation Completeness**:
-
-- ✅ All 14/14 operational + research targets met
-- ✅ Monte Carlo simulation (1,000 synthetic students, 3 independent runs)
-- ✅ Cross-validation (5-fold, gold standard methodology)
-- ✅ Baseline comparison (6 alternative algorithms tested)
-- ✅ Statistical significance (t-test, Wilcoxon, McNemar's, Bootstrap CI)
-- ✅ Publication-ready outputs (2-page summary + 15-page report + 8 figures)
-- ✅ Complete 2-4 hour reproduction pipeline (open science)
 
 ---
 
 ## 📝 License
 
 CHILL NUS
-
----
-
-**Last Updated**: December 3, 2025
-
-**Status**: ✅ Production Ready - Research Validated - Publication Pipeline Ready
-
-**Version**: 4.0 (Operational Reliability - Research-Validated)
-
-**Contact**: See repository maintainers
 
 ---
 
