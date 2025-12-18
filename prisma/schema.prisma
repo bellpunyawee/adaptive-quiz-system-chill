@@ -57,11 +57,12 @@ model Course {
   updatedAt DateTime @updatedAt
 
   // Course-scoped resources
-  cells       Cell[]
-  questions   Question[]
-  quizzes     Quiz[]
-  tags        Tag[]
-  enrollments Enrollment[]
+  cells            Cell[]
+  questions        Question[]
+  quizzes          Quiz[]
+  tags             Tag[]
+  enrollments      Enrollment[]
+  lectureMaterials LectureMaterial[] // RAG-ready: lecture materials
 
   @@index([instructorId])
   @@index([joinCode])
@@ -95,9 +96,10 @@ model Cell {
   courseId String? // Nullable for migration (existing data)
   course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
-  questions      Question[]
-  userMastery    UserCellMastery[]
-  abilityHistory AbilityHistory[]
+  questions        Question[]
+  userMastery      UserCellMastery[]
+  abilityHistory   AbilityHistory[]
+  materialMappings CellMaterialMapping[] // RAG-ready: linked lecture materials
 
   @@unique([courseId, name]) // Unique topic name within course
   @@index([courseId])
@@ -424,4 +426,59 @@ model QuestionTag {
   @@id([questionId, tagId])
   @@index([tagId])
   @@index([questionId])
+}
+
+// ============================================================================
+// RAG-Ready Lecture Material Models
+// ============================================================================
+// These models are designed to support future RAG (Retrieval-Augmented Generation)
+// integration for linking feedback to specific lecture content.
+
+model LectureMaterial {
+  id          String  @id @default(cuid())
+  title       String
+  type        String // 'lecture' | 'reading' | 'video' | 'slides' | 'notes'
+  url         String? // External URL (e.g., YouTube, PDF link)
+  filePath    String? // For uploaded documents (future RAG indexing)
+  description String?
+  content     String? // Extracted text content for RAG (future use)
+
+  // Multi-course support
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  // RAG metadata (future implementation)
+  isIndexed      Boolean   @default(false)
+  indexedAt      DateTime?
+  chunkCount     Int? // Number of vector chunks when indexed
+  embeddingModel String? // Model used for embeddings (e.g., "text-embedding-ada-002")
+
+  // Relationships
+  cellMappings CellMaterialMapping[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
+  @@index([type])
+  @@index([isIndexed])
+}
+
+model CellMaterialMapping {
+  id             String @id @default(cuid())
+  cellId         String
+  materialId     String
+  relevanceScore Float  @default(1.0) // 0-1 score for topic relevance
+
+  // RAG context (future use)
+  relevantChunks String? // JSON array of chunk IDs for this topic
+
+  cell     Cell            @relation(fields: [cellId], references: [id], onDelete: Cascade)
+  material LectureMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([cellId, materialId])
+  @@index([cellId])
+  @@index([materialId])
 }

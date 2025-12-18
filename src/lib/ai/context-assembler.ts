@@ -10,6 +10,73 @@ import { interpretAbility } from './gemini-client';
 
 const prisma = new PrismaClient();
 
+// ============================================================================
+// Enhanced Error Analysis Types
+// ============================================================================
+
+export interface ConceptError {
+  questionId: string;
+  topicName: string;
+  topicId: string;
+  bloomLevel: string | null;
+  difficulty_b: number;
+  responseTime: number | null;
+  errorType: 'incorrect' | 'skipped' | 'slow_correct';
+}
+
+export interface ErrorCluster {
+  conceptArea: string;
+  topicId: string;
+  errorCount: number;
+  errorRate: number; // 0-1
+  totalQuestions: number;
+  avgDifficulty: number;
+  bloomDistribution: Record<string, number>;
+}
+
+export interface BloomAnalysis {
+  levelBreakdown: Array<{
+    level: string;
+    attempted: number;
+    correct: number;
+    accuracy: number;
+  }>;
+  weakestLevel: string | null;
+  strongestLevel: string | null;
+}
+
+export interface ResponseTimeInsights {
+  avgCorrectTime: number;
+  avgIncorrectTime: number;
+  slowThreshold: number; // 90th percentile
+}
+
+export interface ErrorAnalysis {
+  conceptErrors: ConceptError[];
+  errorClusters: ErrorCluster[];
+  responseTimeInsights: ResponseTimeInsights;
+}
+
+export interface MasteryGaugeData {
+  topicName: string;
+  topicId: string;
+  masteryPercentage: number; // 0-100
+  abilityTheta: number;
+  status: 'beginner' | 'developing' | 'proficient' | 'mastered';
+  questionsAnswered: number;
+  accuracy: number;
+}
+
+export interface EnhancedQuizContext extends QuizContext {
+  errorAnalysis: ErrorAnalysis;
+  bloomAnalysis: BloomAnalysis;
+  masteryGauges: MasteryGaugeData[];
+}
+
+// ============================================================================
+// Original QuizContext Types
+// ============================================================================
+
 export interface QuizContext {
   quiz: {
     id: string;
@@ -311,6 +378,378 @@ ${difficultQuestions.length > 0 ? difficultQuestions.map((q) => `- ${q.topicName
 
 Generate the personalized feedback now, following the structured format provided in your system instructions.
 `;
+}
+
+// ============================================================================
+// Enhanced Error Analysis Functions
+// ============================================================================
+
+/**
+ * Type for user answers with question and cell data
+ */
+type UserAnswerWithQuestion = {
+  id: string;
+  questionId: string;
+  isCorrect: boolean;
+  responseTime: number | null;
+  selectedOptionId: string | null;
+  question: {
+    id: string;
+    text: string;
+    difficulty_b: number;
+    discrimination_a: number;
+    bloomTaxonomy: string | null;
+    cellId: string;
+    cell: {
+      id: string;
+      name: string;
+    };
+  };
+};
+
+/**
+ * Calculate the 90th percentile of response times for slow answer detection
+ */
+function calculateSlowThreshold(responseTimes: number[]): number {
+  if (responseTimes.length === 0) return 60000; // Default 60 seconds
+  const sorted = [...responseTimes].sort((a, b) => a - b);
+  const index = Math.floor(sorted.length * 0.9);
+  return sorted[Math.min(index, sorted.length - 1)];
+}
+
+/**
+ * Convert ability theta to mastery status label
+ */
+export function getMasteryStatus(
+  abilityTheta: number
+): 'beginner' | 'developing' | 'proficient' | 'mastered' {
+  if (abilityTheta >= 1.5) return 'mastered';
+  if (abilityTheta >= 0.5) return 'proficient';
+  if (abilityTheta >= -0.5) return 'developing';
+  return 'beginner';
+}
+
+/**
+ * Convert ability theta to mastery percentage (0-100)
+ * Maps theta range [-3, 3] to [0, 100]
+ */
+export function thetaToMasteryPercentage(abilityTheta: number): number {
+  // Clamp theta to [-3, 3] range
+  const clampedTheta = Math.max(-3, Math.min(3, abilityTheta));
+  // Map to 0-100 percentage
+  return Math.round(((clampedTheta + 3) / 6) * 100);
+}
+
+/**
+ * Analyze errors from user answers to identify patterns and clusters
+ */
+export function analyzeErrors(
+  userAnswers: UserAnswerWithQuestion[],
+  slowThreshold?: number
+): ErrorAnalysis {
+  // Calculate slow threshold if not provided
+  const responseTimes = userAnswers
+    .filter((a) => a.responseTime !== null)
+    .map((a) => a.responseTime as number);
+  const threshold = slowThreshold ?? calculateSlowThreshold(responseTimes);
+
+  // Build concept errors list
+  const conceptErrors: ConceptError[] = [];
+
+  for (const answer of userAnswers) {
+    let errorType: 'incorrect' | 'skipped' | 'slow_correct' | null = null;
+
+    if (answer.selectedOptionId === null) {
+      errorType = 'skipped';
+    } else if (!answer.isCorrect) {
+      errorType = 'incorrect';
+    } else if (answer.responseTime && answer.responseTime > threshold) {
+      errorType = 'slow_correct';
+    }
+
+    if (errorType) {
+      conceptErrors.push({
+        questionId: answer.questionId,
+        topicName: answer.question.cell.name,
+        topicId: answer.question.cellId,
+        bloomLevel: answer.question.bloomTaxonomy,
+        difficulty_b: answer.question.difficulty_b,
+        responseTime: answer.responseTime,
+        errorType,
+      });
+    }
+  }
+
+  // Build error clusters by topic
+  const topicMap = new Map<
+    string,
+    {
+      topicId: string;
+      topicName: string;
+      errors: number;
+      total: number;
+      difficulties: number[];
+      bloomCounts: Record<string, number>;
+    }
+  >();
+
+  for (const answer of userAnswers) {
+    const topicId = answer.question.cellId;
+    const existing = topicMap.get(topicId) || {
+      topicId,
+      topicName: answer.question.cell.name,
+      errors: 0,
+      total: 0,
+      difficulties: [],
+      bloomCounts: {},
+    };
+
+    existing.total++;
+    if (!answer.isCorrect || answer.selectedOptionId === null) {
+      existing.errors++;
+      existing.difficulties.push(answer.question.difficulty_b);
+
+      const bloom = answer.question.bloomTaxonomy || 'Unknown';
+      existing.bloomCounts[bloom] = (existing.bloomCounts[bloom] || 0) + 1;
+    }
+
+    topicMap.set(topicId, existing);
+  }
+
+  const errorClusters: ErrorCluster[] = Array.from(topicMap.values())
+    .filter((t) => t.errors > 0)
+    .map((t) => ({
+      conceptArea: t.topicName,
+      topicId: t.topicId,
+      errorCount: t.errors,
+      errorRate: t.total > 0 ? t.errors / t.total : 0,
+      totalQuestions: t.total,
+      avgDifficulty:
+        t.difficulties.length > 0
+          ? t.difficulties.reduce((a, b) => a + b, 0) / t.difficulties.length
+          : 0,
+      bloomDistribution: t.bloomCounts,
+    }))
+    .sort((a, b) => b.errorRate - a.errorRate);
+
+  // Calculate response time insights
+  const correctTimes = userAnswers
+    .filter((a) => a.isCorrect && a.responseTime !== null)
+    .map((a) => a.responseTime as number);
+  const incorrectTimes = userAnswers
+    .filter((a) => !a.isCorrect && a.responseTime !== null)
+    .map((a) => a.responseTime as number);
+
+  const responseTimeInsights: ResponseTimeInsights = {
+    avgCorrectTime:
+      correctTimes.length > 0
+        ? correctTimes.reduce((a, b) => a + b, 0) / correctTimes.length
+        : 0,
+    avgIncorrectTime:
+      incorrectTimes.length > 0
+        ? incorrectTimes.reduce((a, b) => a + b, 0) / incorrectTimes.length
+        : 0,
+    slowThreshold: threshold,
+  };
+
+  return {
+    conceptErrors,
+    errorClusters,
+    responseTimeInsights,
+  };
+}
+
+/**
+ * Analyze performance by Bloom's Taxonomy levels
+ */
+export function analyzeBloomPerformance(
+  userAnswers: UserAnswerWithQuestion[]
+): BloomAnalysis {
+  const bloomMap = new Map<
+    string,
+    { attempted: number; correct: number }
+  >();
+
+  // Bloom's Taxonomy levels in order
+  const bloomLevels = [
+    'Remember',
+    'Understand',
+    'Apply',
+    'Analyze',
+    'Evaluate',
+    'Create',
+  ];
+
+  // Initialize all levels
+  for (const level of bloomLevels) {
+    bloomMap.set(level, { attempted: 0, correct: 0 });
+  }
+
+  // Aggregate data
+  for (const answer of userAnswers) {
+    const bloom = answer.question.bloomTaxonomy || 'Unknown';
+    const existing = bloomMap.get(bloom) || { attempted: 0, correct: 0 };
+    existing.attempted++;
+    if (answer.isCorrect) {
+      existing.correct++;
+    }
+    bloomMap.set(bloom, existing);
+  }
+
+  // Build breakdown array
+  const levelBreakdown = Array.from(bloomMap.entries())
+    .filter(([, data]) => data.attempted > 0)
+    .map(([level, data]) => ({
+      level,
+      attempted: data.attempted,
+      correct: data.correct,
+      accuracy: data.attempted > 0 ? data.correct / data.attempted : 0,
+    }));
+
+  // Find weakest and strongest levels
+  const sortedByAccuracy = [...levelBreakdown]
+    .filter((l) => l.attempted >= 1)
+    .sort((a, b) => a.accuracy - b.accuracy);
+
+  const weakestLevel = sortedByAccuracy[0]?.level || null;
+  const strongestLevel =
+    sortedByAccuracy[sortedByAccuracy.length - 1]?.level || null;
+
+  return {
+    levelBreakdown,
+    weakestLevel,
+    strongestLevel,
+  };
+}
+
+/**
+ * Assemble enhanced quiz context with error analysis and mastery gauges
+ */
+export async function assembleEnhancedQuizContext(
+  quizId: string,
+  userId: string
+): Promise<EnhancedQuizContext> {
+  // Get base context
+  const baseContext = await assembleQuizContext(quizId, userId);
+
+  // Get quiz with full answer details for error analysis
+  const quiz = await prisma.quiz.findUnique({
+    where: { id: quizId },
+    include: {
+      userAnswers: {
+        include: {
+          question: {
+            include: {
+              cell: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!quiz) {
+    throw new Error(`Quiz ${quizId} not found`);
+  }
+
+  // Cast user answers to the expected type
+  const userAnswers = quiz.userAnswers as unknown as UserAnswerWithQuestion[];
+
+  // Perform error analysis
+  const errorAnalysis = analyzeErrors(userAnswers);
+
+  // Perform Bloom's Taxonomy analysis
+  const bloomAnalysis = analyzeBloomPerformance(userAnswers);
+
+  // Get user cell masteries for mastery gauges
+  const userCellMasteries = await prisma.userCellMastery.findMany({
+    where: { userId },
+    include: { cell: true },
+  });
+
+  // Build mastery gauges for topics in this quiz
+  const quizTopicIds = new Set(
+    quiz.userAnswers.map((a) => a.question.cellId)
+  );
+
+  const masteryGauges: MasteryGaugeData[] = userCellMasteries
+    .filter((m) => quizTopicIds.has(m.cellId))
+    .map((m) => {
+      // Calculate quiz-specific accuracy for this topic
+      const topicAnswers = quiz.userAnswers.filter(
+        (a) => a.question.cellId === m.cellId
+      );
+      const topicCorrect = topicAnswers.filter((a) => a.isCorrect).length;
+      const topicAccuracy =
+        topicAnswers.length > 0 ? topicCorrect / topicAnswers.length : 0;
+
+      return {
+        topicName: m.cell.name,
+        topicId: m.cellId,
+        masteryPercentage: thetaToMasteryPercentage(m.ability_theta),
+        abilityTheta: m.ability_theta,
+        status: getMasteryStatus(m.ability_theta),
+        questionsAnswered: topicAnswers.length,
+        accuracy: topicAccuracy,
+      };
+    })
+    .sort((a, b) => b.masteryPercentage - a.masteryPercentage);
+
+  return {
+    ...baseContext,
+    errorAnalysis,
+    bloomAnalysis,
+    masteryGauges,
+  };
+}
+
+/**
+ * Build enhanced feedback prompt with error analysis
+ */
+export function buildEnhancedFeedbackPrompt(context: EnhancedQuizContext): string {
+  const basePrompt = buildFeedbackPrompt(context);
+
+  // Add error pattern analysis section
+  const errorPatternSection = context.errorAnalysis.errorClusters.length > 0
+    ? `\n## Error Pattern Analysis
+${context.errorAnalysis.errorClusters
+  .slice(0, 5)
+  .map(
+    (c) =>
+      `- ${c.conceptArea}: ${(c.errorRate * 100).toFixed(0)}% error rate (${c.errorCount}/${c.totalQuestions} questions)`
+  )
+  .join('\n')}`
+    : '';
+
+  // Add Bloom's Taxonomy section
+  const bloomSection = context.bloomAnalysis.levelBreakdown.length > 0
+    ? `\n## Bloom's Taxonomy Performance
+${context.bloomAnalysis.levelBreakdown
+  .map(
+    (l) =>
+      `- ${l.level}: ${(l.accuracy * 100).toFixed(0)}% (${l.correct}/${l.attempted})`
+  )
+  .join('\n')}
+- Strongest cognitive level: ${context.bloomAnalysis.strongestLevel || 'N/A'}
+- Area for growth: ${context.bloomAnalysis.weakestLevel || 'N/A'}`
+    : '';
+
+  // Add response time insights
+  const timeSection = `\n## Response Time Insights
+- Average time on correct answers: ${(context.errorAnalysis.responseTimeInsights.avgCorrectTime / 1000).toFixed(1)}s
+- Average time on incorrect answers: ${(context.errorAnalysis.responseTimeInsights.avgIncorrectTime / 1000).toFixed(1)}s`;
+
+  // Insert additional sections before the final instruction
+  const insertPoint = basePrompt.lastIndexOf('Generate the personalized feedback now');
+
+  return (
+    basePrompt.slice(0, insertPoint) +
+    errorPatternSection +
+    bloomSection +
+    timeSection +
+    '\n\n' +
+    basePrompt.slice(insertPoint)
+  );
 }
 
 /**
